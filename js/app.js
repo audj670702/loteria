@@ -1,6 +1,6 @@
 import {DEMO_FIGURES,makeCard,shuffle,toggleMark,isFull,normalizeState,imageUrl} from './game.js';
 import {CONFIG} from './config.js';
-import {captureSession,clearSession,login,getContext,getState,enterGame,exitGame,getGames,hasSession} from './api.js?v=lobby-3';
+import {captureSession,clearSession,login,getContext,getState,enterGame,exitGame,getGames,hasSession} from './api.js?v=pcp-4';
 const $=id=>document.getElementById(id);
 let lobbyTimer=null,lobbyRun=0,lobbyGames=[],
 lastPresence=0, ticket='', state=null, marks=new Set(), mode='', deck=[], timer=null, controller=null, generation=0, stale=false, deferredInstall=null;
@@ -57,7 +57,7 @@ async function poll(id,runId){
     const incoming=normalizeState(await getState(id,ticket,controller.signal,presenceDue));if(presenceDue)lastPresence=Date.now();if(runId!==generation)return;
     if(incoming.id!==id || incoming.carton.some((key,i)=>key!==state.carton[i]))throw new Error('El cartón cambió. Consulta al responsable antes de continuar.');
     state=incoming;stale=false;marks=new Set([...marks].filter(k=>state.cantadas.includes(k)));$('sync').textContent='Actualizado';message();render();
-  } catch(error){if(runId!==generation)return;stale=true;$('sync').textContent='Sin actualizar';message(error.message||'No se pudo actualizar. Tus marcas siguen en esta pestaña.',true);renderBoard();}
+  } catch(error){if(runId!==generation)return;if(error.code==='LOT_RETIRO'){clearRoom();await loadLobby();message(error.message,true);return;}stale=true;$('sync').textContent='Sin actualizar';message(error.message||'No se pudo actualizar. Tus marcas siguen en esta pestaña.',true);renderBoard();}
   finally{clearTimeout(timeout);if(runId===generation && ['BORRADOR','EN_CURSO'].includes(state?.estado))timer=setTimeout(()=>poll(id,runId),4000);}
 }
 async function join(requestedId){
@@ -89,8 +89,8 @@ function renderLobby(){
     const title=document.createElement('h2');title.textContent=g.nombre;
     const status=document.createElement('p');status.className='pill';status.textContent={EN_ESPERA:'En espera · inscripción abierta',EN_CURSO:'En curso',CERRADA:'Cerrada'}[g.estado];
     const prize=document.createElement('p');prize.className='muted';prize.textContent=g.premio?'Premio: '+g.premio:'Sin premio anunciado';
-    const joined=document.createElement('p');joined.className='muted';joined.textContent=g.inscrita?'Ya estás inscrito':g.estado==='EN_CURSO'?'La inscripción ya cerró.':g.estado==='CERRADA'?'Esta partida terminó.':'Inscríbete antes del inicio.';
-    const button=document.createElement('button');button.className='primary';button.textContent=g.puedeEntrar?(g.estado==='EN_CURSO'?'Volver a mi cartón':'Ver mi cartón'):g.puedeInscribirse?'Inscribirme':g.estado==='CERRADA'?'Partida cerrada':'Inscripción cerrada';button.disabled=!g.puedeEntrar&&!g.puedeInscribirse;button.onclick=()=>join(g.id);
+    const joined=document.createElement('p');joined.className='muted';joined.textContent=g.retirado?'El administrador te retiró de esta partida.':g.inscrita?'Ya estás inscrito':g.estado==='EN_CURSO'?'La inscripción ya cerró.':g.estado==='CERRADA'?'Esta partida terminó.':'Inscríbete antes del inicio.';
+    const button=document.createElement('button');button.className='primary';button.textContent=g.retirado?'Retirado de la partida':g.puedeEntrar?(g.estado==='EN_CURSO'?'Volver a mi cartón':'Ver mi cartón'):g.puedeInscribirse?'Inscribirme':g.estado==='CERRADA'?'Partida cerrada':'Inscripción cerrada';button.disabled=!g.puedeEntrar&&!g.puedeInscribirse;button.onclick=()=>join(g.id);
     card.append(title,status,prize,joined,button);return card;
   }));$('lobbyStatus').textContent=games.length?games.length+' partidas · actualizado':'No hay partidas en esta vista. El responsable debe abrir la inscripción para que aparezcan.';
 }

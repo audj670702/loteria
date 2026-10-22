@@ -9,7 +9,7 @@ const date=v=>new Date(v).getTime();
 async function removeQuery(query){let total=0;for(let batch=0;batch<50;batch++){const r=await query.limit(1000).find(O);if(!r.items.length)return total;const result=await wixData.bulkRemove(COL,r.items.map(x=>x._id),W);if(result.errors?.length)throw new Error('No se completó la limpieza temporal LOT.');total+=r.items.length;}throw new Error('Limpieza LOT excedió el límite; revisar el trabajo programado.');}
 export async function limpiarPresencias(){return removeQuery(wixData.query(COL).lt('expira',new Date()));}
 export async function cerrarPresencias(game){return removeQuery(wixData.query(COL).eq('partida',game._id));}
-export async function inscripcion(game,user){const r=await wixData.query(COL).eq('_id',key(game,user)).limit(1).find(O);const row=r.items[0];return row&&Number.isFinite(date(row.fechaInscripcion))&&date(row.expira)>Date.now()?row:null;}
+export async function inscripcion(game,user){const r=await wixData.query(COL).eq('partida',game._id).eq('usuario',user._id).limit(2).find(O);const row=r.items.find(p=>p.retirado===true)||r.items[0];return row&&Number.isFinite(date(row.fechaInscripcion))&&date(row.expira)>Date.now()?row:null;}
 function valid(game,row){return ['BORRADOR','EN_CURSO'].includes(game.estado)&&(!game.inicio||date(row.fechaInscripcion)<=date(game.inicio));}
 async function saveEnrollment(game,user,eo,at){
   const k=key(game,user),now=new Date();const old=await wixData.query(COL).eq('_id',k).limit(1).find(O);
@@ -23,6 +23,7 @@ async function saveEnrollment(game,user,eo,at){
   return row;
 }
 export async function inscribir(game,user,eo){
+  await comprobarParticipacion(game,user);
   const old=await inscripcion(game,user);if(old&&valid(game,old))return {row:old,recuperada:true};
   if(!ingresoAbierto(game))throw new Error('La inscripción está cerrada. Solo pueden volver quienes se inscribieron antes del inicio.');
   return {row:await saveEnrollment(game,user,eo,Date.now()),recuperada:false};
@@ -32,16 +33,21 @@ export async function presencia(game,user,eo,verifiedAt){
   let row=await inscripcion(game,user);
   // Migración de una sesión previa: verifiedAt viene solo de un comprobante cuya firma ya se validó en backend.
   if(!row&&Number.isFinite(verifiedAt)&&verifiedAt<=Date.now()&&(!game.inicio||verifiedAt<=date(game.inicio)))row=await saveEnrollment(game,user,eo,verifiedAt);
-  if(!row)return;
+  if(!row||row.retirado===true)return;
   await wixData.update(COL,{...row,ultimaActividad:new Date()},W);
   const fresh=await wixData.get('LOT_Partidas',game._id,O);
   if(!['BORRADOR','EN_CURSO'].includes(fresh.estado))await cerrarPresencias(game);
 }
 export async function salirPresencia(game,user){const row=await inscripcion(game,user);if(row)await wixData.update(COL,{...row,ultimaActividad:new Date(0)},W);}
-export async function misInscripciones(user,eo){let r=await wixData.query(COL).eq('usuario',user._id).eq('enteOperador',eo._id).gt('expira',new Date()).limit(1000).find(O);const rows=[...r.items];while(r.hasNext()){r=await r.next();rows.push(...r.items);}return rows.filter(p=>Number.isFinite(date(p.fechaInscripcion)));}
+export async function misInscripciones(user,eo){let r=await wixData.query(COL).eq('usuario',user._id).eq('enteOperador',eo._id).gt('expira',new Date()).limit(1000).find(O);const rows=[...r.items];while(r.hasNext()){r=await r.next();rows.push(...r.items);}const blocked=new Set(rows.filter(p=>p.retirado===true).map(p=>typeof p.partida==='string'?p.partida:p.partida._id));return rows.filter(p=>Number.isFinite(date(p.fechaInscripcion))&&(p.retirado===true||!blocked.has(typeof p.partida==='string'?p.partida:p.partida._id))); }
 export async function listaPresencias(game,eo){
   await removeQuery(wixData.query(COL).eq('partida',game._id).lt('expira',new Date()));
   let result=await wixData.query(COL).eq('partida',game._id).eq('enteOperador',eo._id).ascending('nombre').limit(1000).find(O);
   const rows=[...result.items];while(result.hasNext()){result=await result.next();rows.push(...result.items);}
-  return rows.filter(p=>Number.isFinite(date(p.fechaInscripcion))).map(p=>({usuario:typeof p.usuario==='string'?p.usuario:p.usuario._id,nombre:p.nombre,fechaInscripcion:p.fechaInscripcion,ultimaActividad:p.ultimaActividad,conectado:Date.now()-date(p.ultimaActividad)<45000}));
+  const blocked=new Set(rows.filter(p=>p.retirado===true).map(p=>typeof p.usuario==='string'?p.usuario:p.usuario._id));
+  return rows.filter(p=>!blocked.has(typeof p.usuario==='string'?p.usuario:p.usuario._id)&&Number.isFinite(date(p.fechaInscripcion))).map(p=>({usuario:typeof p.usuario==='string'?p.usuario:p.usuario._id,nombre:p.nombre,fechaInscripcion:p.fechaInscripcion,ultimaActividad:p.ultimaActividad,conectado:Date.now()-date(p.ultimaActividad)<45000}));
 }
+
+// La marca temporal impide reingreso, latidos y uso de comprobantes ya emitidos.
+export async function comprobarParticipacion(game,user){const row=await inscripcion(game,user);if(row?.retirado===true){const error=new Error('El administrador te retiró de esta partida.');error.code='LOT_RETIRO';throw error;}return row;}
+export async function retirarParticipante(game,user){const row=await inscripcion(game,user);if(!row)throw new Error('La persona ya no está inscrita.');if(row.retirado===true)return;const marker={...row,_id:key(game,user)+'-retirado',retirado:true,ultimaActividad:new Date(0)};delete marker._createdDate;delete marker._updatedDate;delete marker._owner;try{await wixData.insert(COL,marker,W);}catch(error){const current=await inscripcion(game,user);if(current?.retirado!==true)throw error;}}
