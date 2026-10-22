@@ -1,32 +1,28 @@
-# Integración pendiente con Wix / SYS
+# Integración Wix / SYS
 
-Este archivo define un contrato propuesto, no endpoints ya desplegados. `js/config.js` mantiene `liveEnabled:false`. No encender hasta cumplir todos los puntos siguientes.
+La sala usa SYS con app LOT y retorno HTTPS a loteria.scad.mx. El token firmado llega en #t, se retira de la URL y se conserva solo en sessionStorage. El servidor valida firma, caducidad, app, usuario activo SCaD_USR, EO activa SCaD_EO y pertenencia por codigoContexto en cada petición. No se duplican identidades.
 
-## Identidad
+## Rutas
 
-Usar el flujo existente `https://www.scad.mx/sys-autenticacion?app=LOT&returnUrl=...`. Verificar en SYS que la URL de retorno `https://loteria.scad.mx` esté admitida antes de habilitar el acceso. El retorno debe entregar token firmado en `#t=`. No transportar identidad fiable por memberId, EO o roles declarados por el navegador.
+- GET /_functions/lotSalaContexto: identidad propia mínima.
+- POST /_functions/lotSalaEntrada con JSON {partida}: devuelve estado y comprobante firmado, únicamente antes de iniciar.
+- GET /_functions/lotSalaEstado?partida=... con X-LOT-Carton: estado y cartón propio verificado.
+- OPTIONS en las tres rutas. CORS exacto https://loteria.scad.mx, Authorization y Content-Type, respuestas no-store.
 
-El servidor debe validar firma, caducidad, aplicación LOT, usuario activo SCaD_USR, EO activa SCaD_EO y pertenencia por codigoContexto en cada petición. Reutilizar la validación SYS existente, sin copiar secretos ni alterar los permisos ADMIN del CMS. No usar nexusPwaContext ni tokens NEXUS para LOT.
+Todas requieren Authorization Bearer SYS LOT. No usan cookies ni permiten leer usuarios o empresas de terceros. El CMS conserva permisos ADMIN.
 
-## API de participantes propuesta
+## Cartón
 
-Dos lecturas CORS con `Authorization: Bearer <token>` y sin cookies: `GET /_functions/lotSalaContexto` y `GET /_functions/lotSalaEstado?partida=<id>`. Atender preflight OPTIONS y permitir únicamente origen loteria.scad.mx, métodos GET/OPTIONS y cabecera Authorization. Respuestas privadas `Cache-Control: no-store`, sin tokens en logs. HTTP 401 finaliza sesión; 403 deniega EO/partida ajena. No exponer nombres de otros participantes, responsables, ganadores ni las colecciones completas.
+lotCards.js genera 16 figuras deterministas por usuario, partida y pool congelado, usando HMAC SHA256 con separación de dominio. Reingresar antes del inicio entrega el mismo cartón. El comprobante incluye usuario, partida, EO, pool, figuras y vigencia de siete días; su emisión debe preceder al inicio. La clave permanece en el backend Wix existente NEXUS_TOKEN_SECRET.
 
-Contexto: `{ok:true,data:{usuario:{nombre},eo:{nombre}}}`. Estado: `{ok:true,data:{id,estado,figuras:[{id,numero,nombre,imagen}],carton:[16 IDs],cantadas:[IDs]}}`. Nombres y números proceden de LOT_Figuras; el pool de la partida procede de reglas.figuras, no de un catálogo mutable. Estados BORRADOR, EN_CURSO, FINALIZADA, CANCELADA. Cantadas en orden real. Error `{ok:false,mensaje}` con status adecuado.
+Cartón, comprobante y marcas viven en memoria de la pestaña; no se guardan en CMS ni cachés. Al salir o recargar se pierden. Después del inicio esta versión no permite reingresar. Al fallar actualización se detienen marcas y presentación. Finalización y cancelación deshabilitan el juego.
 
-## Emisión de cartones
+## Responsable
 
-No aceptar un cartón arbitrario enviado por el navegador como prueba de ganador remoto. Antes de habilitar partidas reales, definir y emitir en servidor un comprobante firmado con partida, usuario, 16 figuras y caducidad, ligado al pool congelado. Puede ser una emisión determinista mediante HMAC para el mismo usuario y partida, evitando conservar cartones no ganadores y evitando regenerarlos hasta obtener uno favorable. Debe emitirse antes del primer canto y verificarse con hora de emisión firmada. Nunca entregar la clave de firma al frontend. El protocolo de comprobante y entrega al responsable aún no está implementado.
+LOT_Panel muestra enlace sin token. El participante presenta su comprobante al completar las 16. «Leer cartón digital» llena los datos para revisión; esto no autentica la firma. Al registrar, loteria.web.js verifica la firma en servidor y exige coincidencia de las 16 figuras, persona y partida, además de las comprobaciones de cartón lleno y confirmación presencial ya existentes. Solo el ganador confirmado conserva el comprobante dentro de cartonGanador. La revisión manual de cartones físicos permanece disponible.
 
-La pantalla «¡Lotería!» solo presenta el cartón para revisión. No escribe LOT_Ganadores ni concede un premio. El responsable mantiene la validación presencial en LOT_Panel. Si se habilita validación remota, comprobar el comprobante en el backend antes de insertar únicamente la evidencia del ganador. No crear colecciones de cartones o marcas de no ganadores.
+## Cambios de Velo
 
-## Puesta en operación
+Los archivos privados lotCards.js y lotSala.js se copian a backend; http-lot-exports.txt se añade al final del http-functions.js existente, preservando sus rutas. En nexusAuth.js y sysToken.web.js se añade LOT a las listas de apps; en SYS_Autenticacion se añade a APPS_CON_TOKEN y APPS_SOLO_TOKEN. No se modifican permisos CMS ni secretos. No copiar el código compartido completo desde otro sitio.
 
-1. Desplegar métodos de lectura y autenticación LOT; probar sesión, EO ajena, token vencido y CORS.
-2. Implementar emisión firmada y recuperación del mismo cartón al volver a la sesión, sin datos permanentes de no ganadores.
-3. Mostrar en LOT_Panel un enlace compartible a la partida, sin token ni información privada en la URL.
-4. Conectar imágenes 600 × 900 con número y título renderizados por la app; el cliente convierte wix:image a HTTPS.
-5. Probar desconexión, cierre, cancelación y recarga. La sala pausa marcas y presentación de cartón cuando falla la actualización.
-6. Activar liveEnabled y probar un ciclo completo sin premios antes de abrir la sala.
-
-No se modificaron en este PR los módulos compartidos SYS ni http-functions.js del sitio Wix.
+Antes de abrir una partida pública, comprobar un ciclo DEMO sin premios: SYS, entrada antes de inicio, canto, marcas, comprobante y cierre. El responsable realiza la confirmación presencial final.
