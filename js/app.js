@@ -1,8 +1,8 @@
 import {DEMO_FIGURES,makeCard,shuffle,toggleMark,isFull,normalizeState,imageUrl} from './game.js';
 import {CONFIG} from './config.js';
-import {captureSession,clearSession,login,getContext,getState,enterGame} from './api.js';
+import {captureSession,clearSession,login,getContext,getState,enterGame,exitGame} from './api.js';
 const $=id=>document.getElementById(id);
-let ticket='', state=null, marks=new Set(), mode='', deck=[], timer=null, controller=null, generation=0, stale=false, deferredInstall=null;
+let lastPresence=0, ticket='', state=null, marks=new Set(), mode='', deck=[], timer=null, controller=null, generation=0, stale=false, deferredInstall=null;
 function message(text='',error=false){$('message').textContent=text;$('message').className='message'+(error?' error':'');}
 function figure(id){return state.figuras.find(f=>f.id===id);}
 function textName(id){const f=figure(id);return f.numero+' · '+f.nombre;}
@@ -30,6 +30,7 @@ function renderBoard(){
   }));updateProgress();
 }
 function render(){
+  $('gamePrize').textContent=state.premio?'Premio: '+state.premio:'Sin premio anunciado';$('gameCanto').textContent=state.canto?(state.canto.modo==='AUTOMATICO'?'Canto automático':'Canto manual')+(state.canto.pausado?' · En pausa':''):'';
   $('stateLabel').textContent={BORRADOR:'En espera',EN_CURSO:'En curso',FINALIZADA:'Finalizada',CANCELADA:'Cancelada'}[state.estado];
   $('calledCount').textContent=state.cantadas.length+' figuras cantadas';
   const id=state.cantadas.at(-1);$('last').replaceChildren();
@@ -46,12 +47,13 @@ $('demo').onclick=()=>{stop();ticket='';mode='demo';stale=false;marks=new Set();
 $('next').onclick=()=>{if(mode!=='demo'||!deck.length)return;state.cantadas.push(deck.shift());render();if(!deck.length)message('Se cantó toda la baraja. Completa las marcas de tu cartón para probar el cierre.');};
 $('claim').onclick=()=>{if(stale||state.estado!=='EN_CURSO'||!isFull(state.carton,state.cantadas,marks))return;$('claimMode').textContent=mode==='demo'?'DEMOSTRACIÓN · SIN PREMIOS':'CARTÓN PARA REVISIÓN';$('claimText').textContent=mode==='demo'?'Completaste la prueba. No se ha registrado un ganador real ni se ha asignado un premio.':'Muestra este cartón al responsable. Esta pantalla no confirma ni registra un ganador.';$('claimFigures').replaceChildren(...state.carton.map(id=>{const li=document.createElement('li');li.textContent=textName(id);return li;}));$('digitalEvidence').hidden=mode!=='live';$('claimProof').value=ticket;openDialog('claimDialog');};
 $('copyProof').onclick=async()=>{try{await navigator.clipboard.writeText(ticket);$('proofStatus').textContent='Comprobante copiado. Entrégalo al responsable.';}catch{$('claimProof').select();$('proofStatus').textContent='Selecciona y copia el comprobante.';}};
-$('leave').onclick=()=>openDialog('leaveDialog');$('confirmLeave').onclick=()=>{if(mode==='live')clearSession();clearRoom();};
+$('leave').onclick=()=>openDialog('leaveDialog');$('confirmLeave').onclick=async()=>{if(mode==='live'){const abort=new AbortController();const timeout=setTimeout(()=>abort.abort(),4000);try{await exitGame(state.id,abort.signal);}catch{}finally{clearTimeout(timeout);clearSession();}}clearRoom();};
 // El token identifica al miembro únicamente ante SYS. Ningún parámetro de URL concede acceso.
 async function poll(id,runId){
   controller=new AbortController();const timeout=setTimeout(()=>controller?.abort(),12000);
   try {
-    const incoming=normalizeState(await getState(id,ticket,controller.signal));if(runId!==generation)return;
+    const presenceDue=Date.now()-lastPresence>20000;
+    const incoming=normalizeState(await getState(id,ticket,controller.signal,presenceDue));if(presenceDue)lastPresence=Date.now();if(runId!==generation)return;
     if(incoming.id!==id || incoming.carton.some((key,i)=>key!==state.carton[i]))throw new Error('El cartón cambió. Consulta al responsable antes de continuar.');
     state=incoming;stale=false;marks=new Set([...marks].filter(k=>state.cantadas.includes(k)));$('sync').textContent='Actualizado';message();render();
   } catch(error){if(runId!==generation)return;stale=true;$('sync').textContent='Sin actualizar';message(error.message||'No se pudo actualizar. Tus marcas siguen en esta pestaña.',true);renderBoard();}
@@ -67,7 +69,7 @@ async function join(){
     const entered=await enterGame(id,abort.signal);
     if(typeof entered.comprobante!=='string'||!entered.comprobante)throw new Error('No se recibió un comprobante del cartón.');
     const incoming=normalizeState(entered);if(incoming.id!==id)throw new Error('La partida recibida no coincide.');
-    stop();ticket=entered.comprobante;mode='live';state=incoming;stale=false;marks=new Set();$('userName').textContent=context.usuario.nombre;$('eoName').textContent=context.eo.nombre;$('roomMode').textContent='PARTIDA · '+id;$('sync').textContent='Actualizado';$('demoTools').hidden=true;message();enter();if(['BORRADOR','EN_CURSO'].includes(state.estado))timer=setTimeout(()=>poll(id,generation),4000);
+    stop();lastPresence=Date.now();ticket=entered.comprobante;mode='live';state=incoming;stale=false;marks=new Set();$('userName').textContent=context.usuario.nombre;$('eoName').textContent=context.eo.nombre;$('roomMode').textContent=incoming.nombre||'PARTIDA · '+id;$('sync').textContent='Actualizado';$('demoTools').hidden=true;message();enter();if(['BORRADOR','EN_CURSO'].includes(state.estado))timer=setTimeout(()=>poll(id,generation),4000);
   }catch(error){if(error.auth)login(id);else message(error.message||'No se pudo entrar a la partida.',true);}
   finally{clearTimeout(timeout);$('join').disabled=false;}
 }

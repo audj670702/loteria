@@ -30,4 +30,6 @@ async function request(path, signal, {ticket='',body}={}) {
 }
 export const getContext=signal=>request('/lotSalaContexto',signal);
 export const enterGame=(id,signal)=>request('/lotSalaEntrada',signal,{body:{partida:id}});
-export const getState=(id,ticket,signal)=>request('/lotSalaEstado?partida='+encodeURIComponent(id),signal,{ticket});
+export const getState=(id,ticket,signal,presencia=false)=>request('/lotSalaEstado?partida='+encodeURIComponent(id)+(presencia?'&presencia=1':''),signal,{ticket});
+
+export const exitGame=(id,signal)=>request('/lotSalaSalida',signal,{body:{partida:id}});
