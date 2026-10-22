@@ -34,7 +34,7 @@ function render(){
   $('calledCount').textContent=state.cantadas.length+' figuras cantadas';
   const id=state.cantadas.at(-1);$('last').replaceChildren();
   const number=document.createElement('span');number.className='last-number';number.textContent=id?figure(id).numero:'—';
-  const title=document.createElement('h2');title.textContent=id?figure(id).nombre:'Esperando el canto';$('last').append(number,title);
+  const title=document.createElement('h2');title.textContent=id?figure(id).nombre:'Esperando el canto';if(id && imageUrl(figure(id).imagen)){const image=document.createElement('span');image.className='last-art';image.append(art(figure(id)));$('last').append(image,title);}else $('last').append(number,title);
   $('history').replaceChildren(...state.cantadas.map(id=>{const li=document.createElement('li');li.textContent=textName(id);return li;}));
   $('next').disabled=mode!=='demo'||deck.length===0;
   renderBoard();
