@@ -1,6 +1,6 @@
 import {DEMO_FIGURES,makeCard,shuffle,toggleMark,isFull,normalizeState,imageUrl} from './game.js';
 import {CONFIG} from './config.js';
-import {captureSession,clearSession,login,getContext,getState,enterGame,exitGame} from './api.js';
+import {captureSession,clearSession,login,getContext,getState,enterGame,exitGame} from './api.js?v=pcp-2';
 const $=id=>document.getElementById(id);
 let lastPresence=0, ticket='', state=null, marks=new Set(), mode='', deck=[], timer=null, controller=null, generation=0, stale=false, deferredInstall=null;
 function message(text='',error=false){$('message').textContent=text;$('message').className='message'+(error?' error':'');}

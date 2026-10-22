@@ -7,7 +7,8 @@ La sala usa SYS con app LOT y retorno HTTPS a loteria.scad.mx. El token firmado 
 - GET /_functions/lotSalaContexto: identidad propia mínima.
 - POST /_functions/lotSalaEntrada con JSON {partida}: devuelve estado y comprobante firmado, únicamente antes de iniciar.
 - GET /_functions/lotSalaEstado?partida=... con X-LOT-Carton: estado y cartón propio verificado.
-- OPTIONS en las tres rutas. CORS exacto https://loteria.scad.mx, Authorization y Content-Type, respuestas no-store.
+- POST /_functions/lotSalaSalida con JSON {partida}: elimina la presencia propia.
+- OPTIONS en las cuatro rutas. CORS exacto https://loteria.scad.mx, Authorization y Content-Type, respuestas no-store.
 
 Todas requieren Authorization Bearer SYS LOT. No usan cookies ni permiten leer usuarios o empresas de terceros. El CMS conserva permisos ADMIN.
 
@@ -26,3 +27,5 @@ LOT_Panel muestra enlace sin token. El participante presenta su comprobante al c
 Los archivos privados lotCards.js y lotSala.js se copian a backend; http-lot-exports.txt se añade al final del http-functions.js existente, preservando sus rutas. En nexusAuth.js y sysToken.web.js se añade LOT a las listas de apps; en SYS_Autenticacion se añade a APPS_CON_TOKEN y APPS_SOLO_TOKEN. No se modifican permisos CMS ni secretos. No copiar el código compartido completo desde otro sitio.
 
 Antes de abrir una partida pública, comprobar un ciclo DEMO sin premios: SYS, entrada antes de inicio, canto, marcas, comprobante y cierre. El responsable realiza la confirmación presencial final.
+
+La preparación, premio, presencias y canto automático del PCP se describen en [PCP.md](PCP.md).
