@@ -25,7 +25,7 @@ async function request(path, signal, {ticket='',body}={}) {
   const response=await fetch(CONFIG.apiBase+path,{signal,method:body?'POST':'GET',body:body?JSON.stringify(body):undefined,headers,cache:'no-store',credentials:'omit'});
   if (response.status===401) { clearSession(); const e=new Error('Tu sesión terminó. Vuelve a ingresar.'); e.auth=true; throw e; }
   const result=await response.json();
-  if (!response.ok || result.ok!==true) throw new Error(result.mensaje||'No se pudo actualizar la partida.');
+  if (!response.ok || result.ok!==true) {const error=new Error(result.mensaje||'No se pudo actualizar la partida.');error.code=result.codigo;throw error;}
   return result.data;
 }
 export const getContext=signal=>request('/lotSalaContexto',signal);

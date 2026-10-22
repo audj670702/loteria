@@ -3,7 +3,7 @@
 import wixData from 'wix-data';
 import crypto from 'crypto';
 import { configPartida, ingresoAbierto, cantadas, vistaPartida, pausa } from 'backend/lotFlow';
-import { listaPresencias, cerrarPresencias } from 'backend/lotPresence';
+import { listaPresencias, cerrarPresencias, retirarParticipante, comprobarParticipacion } from 'backend/lotPresence';
 import { verifyDigitalCard } from 'backend/lotSala';
 import { currentMember } from 'wix-members-backend';
 import { webMethod, Permissions } from 'wix-web-module';
@@ -108,30 +108,47 @@ export const lotOperacion = webMethod(Permissions.SiteMember, async (request) =>
         check(id(previous.items[0].enteOperador) === ctx.eo._id && id(previous.items[0].catalogo) === cat._id,'Solicitud ya utilizada.');
         return {ok:true,data:previous.items[0]};
       }
-      const saved = await wixData.insert('LOT_Partidas',{_id:key,folio:'LOT-'+key,enteOperador:ctx.eo._id,catalogo:cat._id,responsable:ctx.usr._id,estado:'BORRADOR',reglas:{version:2,modalidad:'CARTON_LLENO',filas:4,columnas:4,figuras:pool.map(f=>f._id),ingresoAbierto:false,...configPartida(datos)},figurasCantadas:[]},O);
+      check(text(datos.nombre).length>=2&&!/^LOT-[a-z0-9-]{16,}$/i.test(text(datos.nombre)),'Escribe un nombre convencional para la partida.');
+      let saved;
+      for(let attempt=0;attempt<5;attempt++){
+      const latest=await wixData.query('LOT_Partidas').descending('numeroRegistro').limit(1).find(O);
+      const numeroRegistro=(Number(latest.items[0]?.numeroRegistro)||0)+1;
+      try{saved = await wixData.insert('LOT_Partidas',{_id:key,numeroRegistro,folio:'REG-'+String(numeroRegistro).padStart(6,'0'),enteOperador:ctx.eo._id,catalogo:cat._id,responsable:ctx.usr._id,estado:'BORRADOR',reglas:{version:2,modalidad:'CARTON_LLENO',filas:4,columnas:4,figuras:pool.map(f=>f._id),ingresoAbierto:false,...configPartida(datos)},figurasCantadas:[]},O);break;}catch(error){const existing=await wixData.query('LOT_Partidas').eq('_id',key).limit(1).find(O);if(existing.items.length){check(id(existing.items[0].enteOperador)===ctx.eo._id,'Solicitud ya utilizada.');saved=existing.items[0];break;}if(attempt===4)throw error;}
+      }
       return {ok:true,data:saved};
     }
     if (accion === 'seguimiento') {
       const game = await owned('LOT_Partidas',datos.partida,ctx);
-      return {ok:true,data:{partida:vistaPartida(game),participantes:await listaPresencias(game,ctx.eo)}};
+      const participants=await listaPresencias(game,ctx.eo);
+      const users=await all(wixData.query('SCaD_USR').eq('app','LOT').eq('enteOperador',ctx.eo.codigoContexto));
+      return {ok:true,data:{partida:vistaPartida(game),participantes:participants.map(p=>{const u=users.find(u=>u._id===p.usuario);return {...p,nombre:u?.nombreVisible||u?.nombreCompleto||p.nombre,avatar:u?.avatar||''};})}};
     }
     if (accion === 'ganadores') {
       const game = await owned('LOT_Partidas',datos.partida,ctx);
       const winners = await all(wixData.query('LOT_Ganadores').eq('partida',game._id));
       return {ok:true,data:winners};
     }
-    if (['configurar','abrir','iniciar','cantar','pausar','reanudar','finalizar','cancelar','ganadorValidar'].includes(accion)) {
+    if (['configurar','abrir','iniciar','cantar','pausar','reanudar','finalizar','cancelar','ganadorValidar','retirarParticipante'].includes(accion)) {
       const game = await owned('LOT_Partidas',datos.partida,ctx);
       check(id(game.responsable) === ctx.usr._id,'Solo el responsable de la partida puede operarla.');
       check(game.reglas?.modalidad === 'CARTON_LLENO' && game.reglas.filas === 4 && game.reglas.columnas === 4,'Reglas incompatibles con esta version.');
       const called = cantadas(game);
       const pool = game.reglas.figuras || [];
+      if(accion==='retirarParticipante'){
+        check(['BORRADOR','EN_CURSO'].includes(game.estado),'La partida está cerrada.');
+        const usr=await wixData.get('SCaD_USR',text(datos.usuario),O);
+        check(usr?.app==='LOT'&&usr.enteOperador===ctx.eo.codigoContexto,'Participante ajeno al ente.');
+        const winners=await wixData.query('LOT_Ganadores').eq('partida',game._id).eq('usuario',usr._id).limit(1).find(O);
+        check(!winners.items.length,'La persona ya tiene un resultado validado en esta partida.');
+        await retirarParticipante(game,usr);return {ok:true,data:{retirado:true}};
+      }
       if (accion === 'ganadorValidar') {
         check(game.estado === 'EN_CURSO','Valida el carton antes de finalizar la partida.');
         check(datos.confirmacionPresencial === true,'El responsable debe verificar presencialmente el carton presentado.');
         const proof = evidence(datos.figuras,called,pool);
         const usr = await wixData.get('SCaD_USR',text(datos.usuario),O);
         check(usr?.activo === true && usr.app === 'LOT' && usr.enteOperador === ctx.eo.codigoContexto,'El ganador debe ser un usuario LOT activo del mismo ente.');
+        await comprobarParticipacion(game,usr);
         const ticket = text(datos.comprobante);
         if (ticket) {
           const card = await verifyDigitalCard(ticket,game,usr);
@@ -147,9 +164,11 @@ export const lotOperacion = webMethod(Permissions.SiteMember, async (request) =>
       check(datos.version === new Date(game._updatedDate).toISOString(),'La partida cambio; actualiza el panel.');
       if (accion === 'configurar') {
         check(game.estado === 'BORRADOR' && !ingresoAbierto(game),'La configuración se cierra al abrir el ingreso.');
+        check(text(datos.nombre).length>=2&&!/^LOT-[a-z0-9-]{16,}$/i.test(text(datos.nombre)),'Escribe un nombre convencional para la partida.');
         game.reglas={...game.reglas,...configPartida(datos)};
       } else if (accion === 'abrir') {
         check(game.estado === 'BORRADOR','La partida ya inició o está cerrada.');
+        if(datos.modo!==undefined){check(!ingresoAbierto(game),'El ingreso ya está abierto.');check(text(datos.nombre).length>=2,'Escribe un nombre para la partida.');game.reglas={...game.reglas,...configPartida(datos)};}
         game.reglas.ingresoAbierto=true;
       } else if (accion === 'iniciar') {
         check(ingresoAbierto(game),'Abre el ingreso antes de iniciar.');
