@@ -4,3 +4,5 @@
 .last-art{display:flex;justify-content:center;align-items:center;height:150px;width:100%}.last-art img{height:100%;max-height:150px;object-fit:contain}@media(max-width:780px){.last-art{height:70px;width:58px}.last-art img{max-height:70px}}
 
 #claimProof{box-sizing:border-box;width:100%;font:12px monospace;resize:vertical;padding:10px;margin:8px 0;overflow-wrap:anywhere}
+
+.game-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px;margin-top:24px}.game-card{padding:22px;border:1px solid var(--line);border-radius:14px;background:#fffdf8}.game-card h2{font-size:21px}.game-card .pill{display:inline-block;margin:0}.game-card button{width:100%;margin-top:12px}.lobby-controls{display:flex;align-items:center;flex-wrap:wrap;gap:12px}.lobby-controls select{font:inherit;border:1px solid var(--line);border-radius:8px;padding:10px;background:white}#lobbyIdentity{line-height:1.6}

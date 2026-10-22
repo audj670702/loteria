@@ -30,3 +30,12 @@ export function verifyCard(secret,ticket,game,user,now=Date.now()) {
   if(!Array.isArray(p.c)||JSON.stringify(p.c)!==JSON.stringify(card))throw new Error('Cartón alterado.');
   return card;
 }
+// Reconstruye el mismo comprobante solo a partir de una inscripción del servidor.
+export function restoreCard(secret,game,user,enrollment,now=Date.now()) {
+  const id=v=>typeof v==='string'?v:v?._id||'';
+  const at=new Date(enrollment?.fechaInscripcion).getTime();
+  if(!['BORRADOR','EN_CURSO'].includes(game.estado)||!Number.isFinite(at)||at>now||id(enrollment?.partida)!==game._id||id(enrollment?.usuario)!==user._id||id(enrollment?.enteOperador)!==id(game.enteOperador))throw new Error('Inscripción no válida para recuperar el cartón.');
+  const issued=issueCard(secret,{...game,estado:'BORRADOR'},user,at);
+  verifyCard(secret,issued.comprobante,game,user,now);
+  return issued;
+}

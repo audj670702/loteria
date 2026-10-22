@@ -1,11 +1,11 @@
 // Backend privado de Velo. No colocar en Público ni importar desde frontend.
 import wixData from 'wix-data';
 import { ingresoAbierto, vistaPartida } from 'backend/lotFlow';
-import { presencia, salirPresencia, cerrarPresencias } from 'backend/lotPresence';
+import { presencia, salirPresencia, inscribir, misInscripciones } from 'backend/lotPresence';
 import { response } from 'wix-http-functions';
 import { getSecret } from 'wix-secrets-backend';
 import { nexusAuth } from 'backend/nexusAuth';
-import { issueCard, verifyCard } from 'backend/lotCards';
+import { restoreCard, verifyCard } from 'backend/lotCards';
 const O={suppressAuth:true,consistentRead:true};
 const ORIGIN='https://loteria.scad.mx';
 const id=v=>typeof v==='string'?v:v?._id||'';
@@ -44,19 +44,18 @@ export async function lotEntry(request){try{
   const ctx=await identity(request);if(ctx.response)return ctx.response;
   const body=await request.body.json();
   const game=await gameFor(body.partida,ctx);
-  check(ingresoAbierto(game),'El ingreso no está abierto. Consulta al responsable y entra antes del inicio.',409);
-  const issued=issueCard(await secret(),game,ctx.user);
-  // Segunda lectura: evita entregar un comprobante si el responsable inició durante la emisión.
-  const fresh=await gameFor(game._id,ctx);check(ingresoAbierto(fresh),'La partida acaba de iniciar o su ingreso está cerrado.',409);
+  let registration;try{registration=await inscribir(game,ctx.user,ctx.eo);}catch(e){check(false,e.message,409);}
+  const fresh=await gameFor(game._id,ctx);
+  let issued;try{issued=restoreCard(await secret(),fresh,ctx.user,registration.row);}catch{check(false,'No se puede recuperar el cartón: la inscripción venció o la partida está cerrada.',409);}
   await presencia(fresh,ctx.user,ctx.eo);
-  return json(200,{ok:true,data:{...await snapshot(fresh,issued.carton),comprobante:issued.comprobante}});
+  return json(200,{ok:true,data:{...await snapshot(fresh,issued.carton),comprobante:issued.comprobante,recuperada:registration.recuperada}});
 }catch(e){return failure(e);}}
 export async function lotState(request){try{
   const ctx=await identity(request);if(ctx.response)return ctx.response;
   const game=await gameFor(request.query?.partida,ctx);
   const ticket=request.headers?.['x-lot-carton']||request.headers?.['X-LOT-Carton'];
   let card;try{card=verifyCard(await secret(),ticket,game,ctx.user);}catch{check(false,'Tu comprobante no es válido para esta partida. Vuelve a entrar antes de su inicio.',403);}
-  if(request.query?.presencia==='1')await presencia(game,ctx.user,ctx.eo);
+  if(request.query?.presencia==='1'){const payload=JSON.parse(Buffer.from(ticket.split('.')[0].replace(/-/g,'+').replace(/_/g,'/'),'base64').toString('utf8'));await presencia(game,ctx.user,ctx.eo,payload.iat);}
   return json(200,{ok:true,data:await snapshot(game,card)});
 }catch(e){return failure(e);}}
 export async function verifyDigitalCard(ticket,game,user){return verifyCard(await secret(),ticket,game,user);}
@@ -65,4 +64,16 @@ export async function lotExit(request){try{
   const ctx=await identity(request);if(ctx.response)return ctx.response;
   const body=await request.body.json();const game=await gameFor(body.partida,ctx);
   await salirPresencia(game,ctx.user);return json(200,{ok:true,data:{salio:true}});
+}catch(e){return failure(e);}}
+
+export async function lotGames(request){try{
+  const ctx=await identity(request);if(ctx.response)return ctx.response;
+  const results=await wixData.query('LOT_Partidas').eq('enteOperador',ctx.eo._id).descending('_createdDate').limit(100).find(O);
+  const registrations=await misInscripciones(ctx.user,ctx.eo);const joined=new Map(registrations.map(r=>[id(r.partida),r]));
+  const partidas=results.items.filter(g=>g.reglas?.modalidad==='CARTON_LLENO'&&(g.estado!=='BORRADOR'||ingresoAbierto(g))).map(g=>{
+    const closed=['FINALIZADA','CANCELADA'].includes(g.estado),r=joined.get(g._id);
+    const inscrita=!!r&&(!g.inicio||new Date(r.fechaInscripcion).getTime()<=new Date(g.inicio).getTime());
+    return {id:g._id,nombre:g.reglas.nombre||g.folio,premio:g.reglas.premio||'',estado:closed?'CERRADA':g.estado==='BORRADOR'?'EN_ESPERA':'EN_CURSO',inscrita,puedeInscribirse:ingresoAbierto(g)&&!inscrita,puedeEntrar:!closed&&inscrita,modo:g.reglas.canto?.modo||'MANUAL',fecha:g.inicio||g._createdDate};
+  });
+  return json(200,{ok:true,data:{usuario:{nombre:ctx.user.nombreVisible||ctx.user.nombreCompleto||ctx.user.nombre||ctx.user.codigoUSR},eo:{nombre:ctx.eo.nombreVisible||ctx.eo.nombre},partidas}});
 }catch(e){return failure(e);}}

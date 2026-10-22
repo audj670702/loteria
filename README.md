@@ -1,6 +1,6 @@
 # LOTERÍA · SCaD
 
-Sala de participantes, modalidad tradicional de cartón lleno 4 × 4. Primera versión 0.1.0.
+Sala de participantes, modalidad tradicional de cartón lleno 4 × 4. Versión 0.3.0: Mis partidas e inscripción desde la app.
 
 ## Estado
 
@@ -11,7 +11,7 @@ La conexión a Wix usa SYS LOT, ingreso antes del inicio y comprobantes firmados
 ## Ejecutar
 
 Desde esta carpeta: `python3 -m http.server 4173` y abrir `http://localhost:4173`.
-Pruebas con Node.js 22 o posterior (13 comprobaciones): `npm test` (sin instalar dependencias).
+Pruebas con Node.js 22 o posterior (26 comprobaciones): `npm test` (sin instalar dependencias).
 
 ## Privacidad
 
@@ -22,3 +22,5 @@ Cartón y marcas permanecen en memoria, se pierden al recargar o salir y nunca s
 Código estático publicado en GitHub Pages con dominio loteria.scad.mx y HTTPS. Conservar CNAME al actualizar. La instalación móvil incluye un manifiesto básico; no se garantiza funcionamiento sin conexión ni instalación compatible con todos los dispositivos.
 
 La separación de barajas institucionales compartidas y catálogos propios se describe en [CATALOGOS.md](docs/CATALOGOS.md).
+
+La app del jugador descubre las partidas de su EO desde Mis partidas. El PCP muestra inscritos y conexión por separado; no es necesario compartir un enlace. Los inscritos pueden volver a su mismo cartón durante la partida. Las marcas no se almacenan.

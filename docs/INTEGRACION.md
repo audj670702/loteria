@@ -16,7 +16,7 @@ Todas requieren Authorization Bearer SYS LOT. No usan cookies ni permiten leer u
 
 lotCards.js genera 16 figuras deterministas por usuario, partida y pool congelado, usando HMAC SHA256 con separación de dominio. Reingresar antes del inicio entrega el mismo cartón. El comprobante incluye usuario, partida, EO, pool, figuras y vigencia de siete días; su emisión debe preceder al inicio. La clave permanece en el backend Wix existente NEXUS_TOKEN_SECRET.
 
-Cartón, comprobante y marcas viven en memoria de la pestaña; no se guardan en CMS ni cachés. Al salir o recargar se pierden. Después del inicio esta versión no permite reingresar. Al fallar actualización se detienen marcas y presentación. Finalización y cancelación deshabilitan el juego.
+Cartón, comprobante y marcas viven en memoria de la pestaña; no se guardan en CMS ni cachés. Al salir o recargar se pierden. Después del inicio pueden volver únicamente quienes tengan inscripción previa; el servidor reconstruye el mismo cartón y comprobante. Las marcas se hacen nuevamente. Al fallar actualización se detienen marcas y presentación. Finalización y cancelación deshabilitan el juego.
 
 ## Responsable
 
@@ -29,3 +29,5 @@ Los archivos privados lotCards.js y lotSala.js se copian a backend; http-lot-exp
 Antes de abrir una partida pública, comprobar un ciclo DEMO sin premios: SYS, entrada antes de inicio, canto, marcas, comprobante y cierre. El responsable realiza la confirmación presencial final.
 
 La preparación, premio, presencias y canto automático del PCP se describen en [PCP.md](PCP.md).
+
+GET /_functions/lotSalaPartidas lista las cien partidas más recientes del ente autenticado, excluyendo preparaciones no abiertas. Solo devuelve nombre, premio, estado y permisos de inscripción/reingreso del propio usuario. LOT_Presencias.fechaInscripcion conserva el ingreso previo hasta cerrar la partida o caducar a los siete días; salir actualiza conexión, sin borrar la inscripción.
