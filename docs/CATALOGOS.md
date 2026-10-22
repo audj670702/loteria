@@ -8,4 +8,4 @@ En el backend LOT, catalog() permite leer un catálogo propio o compartido; figu
 
 Las funciones de wix/catalog-policy.js corresponden a las incorporadas en el backend Velo y tienen pruebas de aislamiento y edición. La designación de nuevas predeterminadas corresponde a administración SCaD desde el CMS, no a un control editable del panel de cada empresa.
 
-Las ilustraciones de js/traditional.js apuntan a los 54 archivos públicos en Media Wix LOTERIA/Tradicional/v1; sirven a la demostración local sin exponer usuarios o empresas. Las partidas reales de participantes continúan bloqueadas hasta completar el contrato de INTEGRACION.md.
+Las ilustraciones de js/traditional.js apuntan a los 54 archivos públicos en Media Wix LOTERIA/Tradicional/v1; sirven a la demostración local sin exponer usuarios o empresas. La integración de participantes se describe en INTEGRACION.md.

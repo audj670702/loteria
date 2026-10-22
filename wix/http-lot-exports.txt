@@ -1,0 +1,9 @@
+
+// LOTERÍA · sala autenticada de participantes
+import { lotOptions, lotContext, lotEntry, lotState } from 'backend/lotSala';
+export function options_lotSalaContexto(request) { return lotOptions(request); }
+export function get_lotSalaContexto(request) { return lotContext(request); }
+export function options_lotSalaEntrada(request) { return lotOptions(request); }
+export function post_lotSalaEntrada(request) { return lotEntry(request); }
+export function options_lotSalaEstado(request) { return lotOptions(request); }
+export function get_lotSalaEstado(request) { return lotState(request); }
