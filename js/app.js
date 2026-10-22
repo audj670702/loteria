@@ -1,9 +1,13 @@
+import {createPregonero} from './pregonero.js?v=audio-5';
 import {DEMO_FIGURES,makeCard,shuffle,toggleMark,isFull,normalizeState,imageUrl} from './game.js';
 import {CONFIG} from './config.js';
-import {captureSession,clearSession,login,getContext,getState,enterGame,exitGame,getGames,hasSession} from './api.js?v=pcp-4';
+import {captureSession,clearSession,login,getContext,getState,enterGame,exitGame,getGames,hasSession} from './api.js?v=audio-5';
 const $=id=>document.getElementById(id);
 let lobbyTimer=null,lobbyRun=0,lobbyGames=[],
 lastPresence=0, ticket='', state=null, marks=new Set(), mode='', deck=[], timer=null, controller=null, generation=0, stale=false, deferredInstall=null;
+const pregonero=createPregonero({synth:window.speechSynthesis,Utterance:window.SpeechSynthesisUtterance,onChange:view=>{$('audioToggle').disabled=!view.supported;$('audioToggle').textContent=view.enabled?'Silenciar pregonero':'Activar audio del pregonero';$('audioToggle').setAttribute('aria-pressed',String(view.enabled));$('audioRepeat').disabled=!view.canRepeat;$('audioStatus').textContent=view.status;}});
+$('audioToggle').onclick=()=>pregonero.toggle();$('audioRepeat').onclick=()=>pregonero.repeat();
+function syncAudio(){pregonero.sync(state,{hidden:document.hidden,outdated:stale});}
 function message(text='',error=false){$('message').textContent=text;$('message').className='message'+(error?' error':'');}
 function figure(id){return state.figuras.find(f=>f.id===id);}
 function textName(id){const f=figure(id);return f.numero+' · '+f.nombre;}
@@ -39,12 +43,12 @@ function render(){
   const title=document.createElement('h2');title.textContent=id?figure(id).nombre:'Esperando el canto';if(id && imageUrl(figure(id).imagen)){const image=document.createElement('span');image.className='last-art';image.append(art(figure(id)));$('last').append(image,title);}else $('last').append(number,title);
   $('history').replaceChildren(...state.cantadas.map(id=>{const li=document.createElement('li');li.textContent=textName(id);return li;}));
   $('next').disabled=mode!=='demo'||deck.length===0;
-  renderBoard();
+  renderBoard();syncAudio();
 }
 function enter(){ $('lobby').hidden=true;$('welcome').hidden=true;$('room').hidden=false;render();$('room').scrollIntoView({block:'start'}); }
 function stop(){generation++;clearTimeout(timer);controller?.abort();controller=null;}
-function clearRoom(){stop();ticket='';$('claimProof').value='';state=null;marks.clear();deck=[];mode='';stale=false;document.querySelectorAll('dialog[open]').forEach(d=>d.close());$('board').replaceChildren();$('history').replaceChildren();$('claimFigures').replaceChildren();$('room').hidden=true;$('welcome').hidden=false;message();$('demo').focus();}
-$('demo').onclick=()=>{stopLobby();$('lobby').hidden=true;stop();ticket='';mode='demo';stale=false;marks=new Set();state={id:'demostracion',estado:'EN_CURSO',figuras:DEMO_FIGURES,carton:makeCard(DEMO_FIGURES),cantadas:[]};deck=shuffle(DEMO_FIGURES.map(f=>f.id));$('userName').textContent='Visitante de demostración';$('eoName').textContent='Sin conexión a una empresa';$('roomMode').textContent='DEMOSTRACIÓN · SIN PREMIOS';$('sync').textContent='Prueba local';$('demoTools').hidden=false;message('Esta demostración no crea partidas ni ganadores reales.');enter();};
+function clearRoom(){stop();pregonero.reset();ticket='';$('claimProof').value='';state=null;marks.clear();deck=[];mode='';stale=false;document.querySelectorAll('dialog[open]').forEach(d=>d.close());$('board').replaceChildren();$('history').replaceChildren();$('claimFigures').replaceChildren();$('room').hidden=true;$('welcome').hidden=false;message();$('demo').focus();}
+$('demo').onclick=()=>{pregonero.reset();stopLobby();$('lobby').hidden=true;stop();ticket='';mode='demo';stale=false;marks=new Set();state={id:'demostracion',estado:'EN_CURSO',figuras:DEMO_FIGURES,carton:makeCard(DEMO_FIGURES),cantadas:[]};deck=shuffle(DEMO_FIGURES.map(f=>f.id));$('userName').textContent='Visitante de demostración';$('eoName').textContent='Sin conexión a una empresa';$('roomMode').textContent='DEMOSTRACIÓN · SIN PREMIOS';$('sync').textContent='Prueba local';$('demoTools').hidden=false;message('Esta demostración no crea partidas ni ganadores reales.');enter();};
 $('next').onclick=()=>{if(mode!=='demo'||!deck.length)return;state.cantadas.push(deck.shift());render();if(!deck.length)message('Se cantó toda la baraja. Completa las marcas de tu cartón para probar el cierre.');};
 $('claim').onclick=()=>{if(stale||state.estado!=='EN_CURSO'||!isFull(state.carton,state.cantadas,marks))return;$('claimMode').textContent=mode==='demo'?'DEMOSTRACIÓN · SIN PREMIOS':'CARTÓN PARA REVISIÓN';$('claimText').textContent=mode==='demo'?'Completaste la prueba. No se ha registrado un ganador real ni se ha asignado un premio.':'Muestra este cartón al responsable. Esta pantalla no confirma ni registra un ganador.';$('claimFigures').replaceChildren(...state.carton.map(id=>{const li=document.createElement('li');li.textContent=textName(id);return li;}));$('digitalEvidence').hidden=mode!=='live';$('claimProof').value=ticket;openDialog('claimDialog');};
 $('copyProof').onclick=async()=>{try{await navigator.clipboard.writeText(ticket);$('proofStatus').textContent='Comprobante copiado. Entrégalo al responsable.';}catch{$('claimProof').select();$('proofStatus').textContent='Selecciona y copia el comprobante.';}};
@@ -57,7 +61,7 @@ async function poll(id,runId){
     const incoming=normalizeState(await getState(id,ticket,controller.signal,presenceDue));if(presenceDue)lastPresence=Date.now();if(runId!==generation)return;
     if(incoming.id!==id || incoming.carton.some((key,i)=>key!==state.carton[i]))throw new Error('El cartón cambió. Consulta al responsable antes de continuar.');
     state=incoming;stale=false;marks=new Set([...marks].filter(k=>state.cantadas.includes(k)));$('sync').textContent='Actualizado';message();render();
-  } catch(error){if(runId!==generation)return;if(error.code==='LOT_RETIRO'){clearRoom();await loadLobby();message(error.message,true);return;}stale=true;$('sync').textContent='Sin actualizar';message(error.message||'No se pudo actualizar. Tus marcas siguen en esta pestaña.',true);renderBoard();}
+  } catch(error){if(runId!==generation)return;if(error.code==='LOT_RETIRO'){clearRoom();await loadLobby();message(error.message,true);return;}stale=true;$('sync').textContent='Sin actualizar';message(error.message||'No se pudo actualizar. Tus marcas siguen en esta pestaña.',true);renderBoard();syncAudio();}
   finally{clearTimeout(timeout);if(runId===generation && ['BORRADOR','EN_CURSO'].includes(state?.estado))timer=setTimeout(()=>poll(id,runId),4000);}
 }
 async function join(requestedId){
@@ -70,14 +74,15 @@ async function join(requestedId){
     const entered=await enterGame(id,abort.signal);
     if(typeof entered.comprobante!=='string'||!entered.comprobante)throw new Error('No se recibió un comprobante del cartón.');
     const incoming=normalizeState(entered);if(incoming.id!==id)throw new Error('La partida recibida no coincide.');
-    stop();lastPresence=Date.now();ticket=entered.comprobante;mode='live';state=incoming;stale=false;marks=new Set();$('userName').textContent=context.usuario.nombre;$('eoName').textContent=context.eo.nombre;$('roomMode').textContent=incoming.nombre||'PARTIDA · '+id;$('sync').textContent='Actualizado';$('demoTools').hidden=true;message(entered.recuperada?'Recuperaste tu mismo cartón. Marca nuevamente las figuras que ya fueron cantadas.':'Inscripción confirmada. Tu cartón está listo.');enter();if(['BORRADOR','EN_CURSO'].includes(state.estado))timer=setTimeout(()=>poll(id,generation),4000);
+    stop();pregonero.reset();lastPresence=Date.now();ticket=entered.comprobante;mode='live';state=incoming;stale=false;marks=new Set();$('userName').textContent=context.usuario.nombre;$('eoName').textContent=context.eo.nombre;$('roomMode').textContent=incoming.nombre||'PARTIDA · '+id;$('sync').textContent='Actualizado';$('demoTools').hidden=true;message(entered.recuperada?'Recuperaste tu mismo cartón. Marca nuevamente las figuras que ya fueron cantadas.':'Inscripción confirmada. Tu cartón está listo.');enter();if(['BORRADOR','EN_CURSO'].includes(state.estado))timer=setTimeout(()=>poll(id,generation),4000);
   }catch(error){if(error.auth)login(id);else message(error.message||'No se pudo entrar a la partida.',true);}
   finally{clearTimeout(timeout);$('join').disabled=false;}
 }
 $('join').onclick=join;$('gameId').onkeydown=e=>{if(e.key==='Enter')join();};
 window.addEventListener('beforeunload',e=>{if(state){e.preventDefault();e.returnValue='';}});
-window.addEventListener('pagehide',()=>stop());
-window.addEventListener('pageshow',e=>{if(e.persisted&&state&&mode==='live'){stale=true;renderBoard();poll(state.id,generation);}});
+window.addEventListener('pagehide',()=>{stop();pregonero.suspend();});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)pregonero.suspend();else if(state){if(mode==='live')stale=true;syncAudio();}});
+window.addEventListener('pageshow',e=>{if(e.persisted&&state&&mode==='live'){stale=true;renderBoard();syncAudio();poll(state.id,generation);}});
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e;$('install').hidden=false;});
 $('install').onclick=async()=>{if(!deferredInstall)return;await deferredInstall.prompt();deferredInstall=null;$('install').hidden=true;};
 try{captureSession();}catch(error){message(error.message,true);}
