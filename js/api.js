@@ -11,7 +11,7 @@ export function captureSession() {
 export function clearSession() { try { sessionStorage.removeItem(TOKEN_KEY); } catch {} }
 export function login(partida) {
   if (!CONFIG.liveEnabled) throw new Error('La conexión a partidas reales está en preparación.');
-  const back=new URL(location.origin+location.pathname); back.searchParams.set('partida',partida);
+  const back=new URL(location.origin+location.pathname); if(partida)back.searchParams.set('partida',partida);
   const url=new URL(CONFIG.authUrl); url.searchParams.set('app','LOT'); url.searchParams.set('returnUrl',back.href);
   location.assign(url.href);
 }
@@ -33,3 +33,6 @@ export const enterGame=(id,signal)=>request('/lotSalaEntrada',signal,{body:{part
 export const getState=(id,ticket,signal,presencia=false)=>request('/lotSalaEstado?partida='+encodeURIComponent(id)+(presencia?'&presencia=1':''),signal,{ticket});
 
 export const exitGame=(id,signal)=>request('/lotSalaSalida',signal,{body:{partida:id}});
+
+export const getGames=signal=>request('/lotSalaPartidas',signal);
+export function hasSession(){try{return !!sessionStorage.getItem(TOKEN_KEY);}catch{return false;}}
