@@ -1,6 +1,6 @@
-import {createEffects} from './effects.js?v=audio-10';
+import {createEffects} from './effects.js?v=inicio-11';
 import {createBoardView} from './board-view.js?v=cierre-9';
-import {createPregonero} from './pregonero.js?v=cierre-9';
+import {createPregonero} from './pregonero.js?v=inicio-11';
 import {DEMO_FIGURES,makeCard,shuffle,toggleMark,isSystemFull,normalizeState,imageUrl,isOneAway,formatClaim} from './game.js?v=cierre-9';
 import {CONFIG} from './config.js';
 import {captureSession,clearSession,login,getContext,getState,enterGame,exitGame,getGames,hasSession,presentCard} from './api.js?v=cierre-9';
@@ -9,7 +9,9 @@ let lobbyTimer=null,lobbyRun=0,lobbyGames=[],
 lastPresence=0, ticket='', state=null, marks=new Set(), mode='', deck=[], timer=null, controller=null, generation=0, stale=false, deferredInstall=null;
 let presenting=false,endStamp='',playerUser=null;
 const effects=createEffects({onBlocked:()=>{$('effectsStatus').textContent='Toca Activar efectos para habilitar los sonidos en este dispositivo.';}});
-document.addEventListener('pointerdown',()=>effects.unlock(),{capture:true});
+function unlockAudio(){if(playersAudioAllowed()){effects.unlock();pregonero.unlock();}}
+document.addEventListener('pointerdown',unlockAudio,{capture:true});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')unlockAudio();},{capture:true});
 $('effectsToggle').onclick=()=>{effectsMuted=!effectsMuted;effects.setEnabled(!effectsMuted);$('effectsToggle').textContent=effectsMuted?'Activar efectos':'Silenciar efectos';$('effectsStatus').textContent=effectsMuted?'Efectos silenciados.':'Efectos activados.';syncAudio();};
 let effectsMuted=false;
 function playersAudioAllowed(){return mode==='demo'||state?.presentacion?.audioJugadores!==false;}
