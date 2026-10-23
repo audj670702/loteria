@@ -1,5 +1,7 @@
+import {soundEngine} from './audio-engine.js?v=voz-12';
 // Efectos locales: nunca determinan el resultado ni avanzan el canto.
-export function createEffects({makeAudio=src=>new Audio(src),onBlocked=()=>{}}={}){
+export function createEffects({makeAudio,unlockAudio,onBlocked=()=>{}}={}){
+  const nativeEngine=!makeAudio;makeAudio=makeAudio||((src)=>soundEngine.clip(src));unlockAudio=unlockAudio||(nativeEngine?()=>soundEngine.unlock():()=>Promise.resolve());
   const audio={start:makeAudio('./assets/inicia_partida.mp3'),near:makeAudio('./assets/carta_final.mp3'),end:makeAudio('./assets/partida_terminada.mp3')};
   audio.near.loop=false;for(const a of Object.values(audio))a.preload='auto';
   let enabled=true,unlocked=false,near=false,nearPlayed=false,ended=false,currentGame='',hidden=false,allowed=true,epoch=0,pendingEnd=false,priming=false,pendingStart=false,started=false,phase='',fresh=true,inCourse=false;
@@ -8,8 +10,7 @@ export function createEffects({makeAudio=src=>new Audio(src),onBlocked=()=>{}}={
   function reconcile(){if(near&&enabled&&allowed&&!hidden&&unlocked){if(!nearPlayed){nearPlayed=true;play(audio.near);}}else halt(audio.near);}
   function startIfReady(){if(pendingStart&&!started&&enabled&&unlocked&&!hidden&&allowed&&fresh&&inCourse){pendingStart=false;started=true;play(audio.start);}}
   function unlock(){if(unlocked||priming)return;priming=true;const run=++epoch;
-    const tasks=Object.entries(audio).map(([key,a])=>{a.volume=0;try{return Promise.resolve(a.play()).then(()=>{if(run!==epoch)return;halt(a);a.volume=1;}).catch(()=>{if(run===epoch)a.volume=1;});}catch{a.volume=1;return Promise.resolve();}});
-    Promise.all(tasks).then(()=>{if(run!==epoch)return;unlocked=true;priming=false;startIfReady();reconcile();if(pendingEnd){pendingEnd=false;play(audio.end);}});
+    Promise.resolve(unlockAudio()).then(()=>{if(run!==epoch)return;unlocked=true;priming=false;startIfReady();reconcile();if(pendingEnd){pendingEnd=false;play(audio.end);}}).catch(()=>{if(run===epoch){priming=false;unlocked=false;onBlocked();}});
   }
   return {
     unlock,
