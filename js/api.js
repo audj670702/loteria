@@ -36,3 +36,5 @@ export const exitGame=(id,signal)=>request('/lotSalaSalida',signal,{body:{partid
 
 export const getGames=signal=>request('/lotSalaPartidas',signal);
 export function hasSession(){try{return !!sessionStorage.getItem(TOKEN_KEY);}catch{return false;}}
+
+export const presentCard=(id,ticket,signal)=>request('/lotSalaEntrada',signal,{ticket,body:{partida:id,accion:'presentar'}});

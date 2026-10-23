@@ -4,7 +4,7 @@ import wixData from 'wix-data';
 import crypto from 'crypto';
 import { configPartida, ingresoAbierto, cantadas, vistaPartida, pausa } from 'backend/lotFlow';
 import { listaPresencias, cerrarPresencias, retirarParticipante, comprobarParticipacion } from 'backend/lotPresence';
-import { verifyDigitalCard } from 'backend/lotSala';
+import { verifyDigitalCard, resolveDigitalResult } from 'backend/lotSala';
 import { currentMember } from 'wix-members-backend';
 import { webMethod, Permissions } from 'wix-web-module';
 const O = { suppressAuth: true, consistentRead: true };
@@ -118,10 +118,11 @@ export const lotOperacion = webMethod(Permissions.SiteMember, async (request) =>
       return {ok:true,data:saved};
     }
     if (accion === 'seguimiento') {
-      const game = await owned('LOT_Partidas',datos.partida,ctx);
+      const resolved=await resolveDigitalResult(await owned('LOT_Partidas',datos.partida,ctx));const game=resolved.game;
       const participants=await listaPresencias(game,ctx.eo);
+      for(const w of resolved.winners){if(!participants.some(p=>p.usuario===id(w.usuario)))participants.push({usuario:id(w.usuario),nombre:w.cartonGanador?.nombre||'Jugador',conectado:false});}
       const users=await all(wixData.query('SCaD_USR').eq('app','LOT').eq('enteOperador',ctx.eo.codigoContexto));
-      return {ok:true,data:{partida:vistaPartida(game),participantes:participants.map(p=>{const u=users.find(u=>u._id===p.usuario);return {...p,nombre:u?.nombreVisible||u?.nombreCompleto||p.nombre,avatar:u?.avatar||''};})}};
+      return {ok:true,data:{partida:vistaPartida(game),participantes:participants.map(p=>{const u=users.find(u=>u._id===p.usuario);const w=resolved.winners.find(w=>id(w.usuario)===p.usuario);return {...p,nombre:u?.nombreVisible||u?.nombreCompleto||p.nombre,avatar:u?.avatar||w?.cartonGanador?.avatar||'',ganador:!!w,fechaValidacion:w?.fechaValidacion||null,cartonGanador:w?.cartonGanador?.figuras||null};})}};
     }
     if (accion === 'ganadores') {
       const game = await owned('LOT_Partidas',datos.partida,ctx);
@@ -129,7 +130,7 @@ export const lotOperacion = webMethod(Permissions.SiteMember, async (request) =>
       return {ok:true,data:winners};
     }
     if (['configurar','abrir','iniciar','cantar','pausar','reanudar','finalizar','cancelar','ganadorValidar','retirarParticipante'].includes(accion)) {
-      const game = await owned('LOT_Partidas',datos.partida,ctx);
+      const game = (await resolveDigitalResult(await owned('LOT_Partidas',datos.partida,ctx))).game;
       check(id(game.responsable) === ctx.usr._id,'Solo el responsable de la partida puede operarla.');
       check(game.reglas?.modalidad === 'CARTON_LLENO' && game.reglas.filas === 4 && game.reglas.columnas === 4,'Reglas incompatibles con esta version.');
       const called = cantadas(game);
@@ -142,25 +143,7 @@ export const lotOperacion = webMethod(Permissions.SiteMember, async (request) =>
         check(!winners.items.length,'La persona ya tiene un resultado validado en esta partida.');
         await retirarParticipante(game,usr);return {ok:true,data:{retirado:true}};
       }
-      if (accion === 'ganadorValidar') {
-        check(game.estado === 'EN_CURSO','Valida el carton antes de finalizar la partida.');
-        check(datos.confirmacionPresencial === true,'El responsable debe verificar presencialmente el carton presentado.');
-        const proof = evidence(datos.figuras,called,pool);
-        const usr = await wixData.get('SCaD_USR',text(datos.usuario),O);
-        check(usr?.activo === true && usr.app === 'LOT' && usr.enteOperador === ctx.eo.codigoContexto,'El ganador debe ser un usuario LOT activo del mismo ente.');
-        await comprobarParticipacion(game,usr);
-        const ticket = text(datos.comprobante);
-        if (ticket) {
-          const card = await verifyDigitalCard(ticket,game,usr);
-          check(card.every((value,index)=>value === datos.figuras[index]),'El comprobante no coincide con el carton presentado.');
-          proof.comprobante = ticket;
-        }
-        const key = game._id + '-' + usr._id;
-        const previous = await wixData.query('LOT_Ganadores').eq('_id',key).limit(1).find(O);
-        if (previous.items.length) return {ok:true,data:previous.items[0]};
-        const saved = await wixData.insert('LOT_Ganadores',{_id:key,folio:'GAN-'+key,partida:game._id,usuario:usr._id,figuraGanadora:'CARTON_LLENO',fechaValidacion:new Date(),validadoPor:ctx.usr._id,cartonGanador:proof,premio:game.reglas.version>=2?game.reglas.premio||'':text(datos.premio).slice(0,300)},O);
-        return {ok:true,data:saved};
-      }
+      if(accion==='ganadorValidar')throw new Error('El ganador se valida automáticamente al presentar su cartón desde la app.');
       check(datos.version === new Date(game._updatedDate).toISOString(),'La partida cambio; actualiza el panel.');
       if (accion === 'configurar') {
         check(game.estado === 'BORRADOR' && !ingresoAbierto(game),'La configuración se cierra al abrir el ingreso.');

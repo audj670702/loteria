@@ -1,6 +1,6 @@
 // Backend privado de Velo. No colocar en Público ni importar desde frontend.
 import wixData from 'wix-data';
-import { ingresoAbierto, vistaPartida } from 'backend/lotFlow';
+import { ingresoAbierto, vistaPartida, cantadas } from 'backend/lotFlow';
 import { presencia, salirPresencia, inscribir, misInscripciones, comprobarParticipacion } from 'backend/lotPresence';
 import { response } from 'wix-http-functions';
 import { getSecret } from 'wix-secrets-backend';
@@ -34,16 +34,18 @@ async function snapshot(game,carton){
   const r=await wixData.query('LOT_Figuras').eq('catalogo',id(game.catalogo)).limit(1000).find(O);
   const byId=new Map(r.items.map(f=>[f._id,f]));
   const figuras=game.reglas.figuras.map(k=>{const f=byId.get(k);check(f,'La baraja de esta partida no está completa.',409);return {id:f._id,numero:f.numero,nombre:f.nombre,imagen:f.imagen||null};});
+  const resolved=await resolveDigitalResult(game);game=resolved.game;
   const view=vistaPartida(game);
-  return {id:game._id,estado:game.estado,nombre:game.reglas.nombre&&!game.reglas.nombre.startsWith('LOT-')?game.reglas.nombre:'Partida de lotería',premio:game.reglas.premio||'',presentacion:{resaltarCantadas:game.reglas.presentacion?.resaltarCantadas===true,audioJugadores:game.reglas.presentacion?.audioJugadores!==false,anuncioGanador:game.reglas.presentacion?.anuncioGanador||'Lotería'},canto:view._canto,figuras,carton,cantadas:view.figurasCantadas};
+  return {ganadores:resolved.winners.map(w=>({usuario:id(w.usuario),nombre:w.cartonGanador?.nombre||'Jugador',avatar:w.cartonGanador?.avatar||'',fecha:w.fechaValidacion})),cierre:game.reglas.cierre||null,id:game._id,estado:game.estado,nombre:game.reglas.nombre&&!game.reglas.nombre.startsWith('LOT-')?game.reglas.nombre:'Partida de lotería',premio:game.reglas.premio||'',presentacion:{resaltarCantadas:game.reglas.presentacion?.resaltarCantadas===true,audioJugadores:game.reglas.presentacion?.audioJugadores!==false,anuncioGanador:game.reglas.presentacion?.anuncioGanador||'Lotería'},canto:view._canto,figuras,carton,cantadas:view.figurasCantadas};
 }
 function failure(e){console.error('LOT_SALA',e.status||500);return json(e.status||500,{ok:false,mensaje:e.status?e.message:'No se pudo completar la operación. Intenta de nuevo.',codigo:e.code});}
 export function lotOptions(request){try{origin(request);return response({status:204,headers});}catch(e){return failure(e);}}
-export async function lotContext(request){try{const ctx=await identity(request);if(ctx.response)return ctx.response;return json(200,{ok:true,data:{usuario:{nombre:ctx.user.nombreVisible||ctx.user.nombreCompleto||ctx.user.nombre||ctx.user.codigoUSR,avatar:ctx.user.avatar||''},eo:{nombre:ctx.eo.nombreVisible||ctx.eo.nombre}}});}catch(e){return failure(e);}}
+export async function lotContext(request){try{const ctx=await identity(request);if(ctx.response)return ctx.response;return json(200,{ok:true,data:{usuario:{id:ctx.user._id,nombre:ctx.user.nombreVisible||ctx.user.nombreCompleto||ctx.user.nombre||ctx.user.codigoUSR,avatar:ctx.user.avatar||''},eo:{nombre:ctx.eo.nombreVisible||ctx.eo.nombre}}});}catch(e){return failure(e);}}
 export async function lotEntry(request){try{
   const ctx=await identity(request);if(ctx.response)return ctx.response;
   const body=await request.body.json();
   const game=await gameFor(body.partida,ctx);
+  if(body.accion==='presentar')return await presentDigital(request,ctx,game);
   let registration;try{registration=await inscribir(game,ctx.user,ctx.eo);}catch(e){e.status=409;throw e;}
   const fresh=await gameFor(game._id,ctx);
   let issued;try{issued=restoreCard(await secret(),fresh,ctx.user,registration.row);}catch{check(false,'No se puede recuperar el cartón: la inscripción venció o la partida está cerrada.',409);}
@@ -76,5 +78,49 @@ export async function lotGames(request){try{
     const inscrita=!!r&&!retirado&&(!g.inicio||new Date(r.fechaInscripcion).getTime()<=new Date(g.inicio).getTime());
     return {id:g._id,nombre:g.reglas.nombre&&!g.reglas.nombre.startsWith('LOT-')?g.reglas.nombre:'Partida de lotería',premio:g.reglas.premio||'',estado:closed?'CERRADA':g.estado==='BORRADOR'?'EN_ESPERA':'EN_CURSO',inscrita,retirado,puedeInscribirse:ingresoAbierto(g)&&!inscrita&&!retirado,puedeEntrar:!closed&&inscrita,modo:g.reglas.canto?.modo||'MANUAL',fecha:g.inicio||g._createdDate};
   });
-  return json(200,{ok:true,data:{usuario:{nombre:ctx.user.nombreVisible||ctx.user.nombreCompleto||ctx.user.nombre||ctx.user.codigoUSR,avatar:ctx.user.avatar||''},eo:{nombre:ctx.eo.nombreVisible||ctx.eo.nombre},partidas}});
+  return json(200,{ok:true,data:{usuario:{id:ctx.user._id,nombre:ctx.user.nombreVisible||ctx.user.nombreCompleto||ctx.user.nombre||ctx.user.codigoUSR,avatar:ctx.user.avatar||''},eo:{nombre:ctx.eo.nombreVisible||ctx.eo.nombre},partidas}});
 }catch(e){return failure(e);}}
+
+// La primera inserción con ID único congela el canto. No almacena cartones de no ganadores.
+const closeKey=game=>game._id+'-cierre-digital';
+async function closingWinner(game){const r=await wixData.query('LOT_Ganadores').eq('_id',closeKey(game)).limit(1).find(O);return r.items[0];}
+function applyDigitalClose(game,winner){const close=winner.cartonGanador.cierre;return {...game,estado:'FINALIZADA',fin:new Date(close.fecha),figurasCantadas:[...close.cantadas],reglas:{...game.reglas,ingresoAbierto:false,cierre:{motivo:'GANADOR_DIGITAL',fecha:close.fecha,turno:close.cantadas.length},canto:{...game.reglas.canto,pausado:true,desde:null}}};}
+export async function resolveDigitalResult(game){
+  const first=await closingWinner(game);
+  if(first){const needs=game.estado!=='FINALIZADA'||game.reglas.cierre?.motivo!=='GANADOR_DIGITAL'||JSON.stringify(game.figurasCantadas)!==JSON.stringify(first.cartonGanador.cierre.cantadas);game=applyDigitalClose(game,first);if(needs)game=await wixData.update('LOT_Partidas',game,{suppressAuth:true});}
+  const r=await wixData.query('LOT_Ganadores').eq('partida',game._id).limit(1000).find(O);let page=r;const winners=[...r.items];while(page.hasNext()){page=await page.next();winners.push(...page.items);}
+  return {game,winners};
+}
+function completionTurn(card,called){return Math.max(...card.map(k=>called.indexOf(k)))+1;}
+export async function registerDigitalWinner(game,user,card){
+  check(card.length===16&&new Set(card).size===16&&card.every(k=>game.reglas.figuras.includes(k)),'Cartón inválido.',400);
+  let first=await closingWinner(game);
+  const previous=await wixData.query('LOT_Ganadores').eq('partida',game._id).eq('usuario',user._id).limit(1).find(O);
+  if(previous.items.length)return resolveDigitalResult(game);
+  check(game.estado==='EN_CURSO'||!!first,'La partida ya está cerrada.',409);
+  let called=first?.cartonGanador.cierre.cantadas||cantadas(game);
+  check(card.every(k=>called.includes(k)),'El sistema aún no reconoce las 16 figuras cantadas de tu cartón.',409);
+  const now=Date.now();
+  const values={folio:'GAN-DIGITAL',partida:game._id,usuario:user._id,figuraGanadora:'CARTON_LLENO',fechaValidacion:new Date(now),premio:game.reglas.premio||'',cartonGanador:{filas:4,columnas:4,figuras:[...card],posicionesGanadoras:Array.from({length:16},(_,i)=>i),validacion:'SISTEMA',presentacion:'DIGITAL',nombre:user.nombreVisible||user.nombreCompleto||user.nombre||user.codigoUSR,avatar:user.avatar||''}};
+  if(!first){
+    // La clave única evita que dos peticiones simultáneas elijan cortes diferentes.
+    const closing={...values,_id:closeKey(game),cartonGanador:{...values.cartonGanador,cierre:{fecha:new Date(now).toISOString(),cantadas:[...called],turnoGanador:completionTurn(card,called)}}};
+    try{first=await wixData.insert('LOT_Ganadores',closing,{suppressAuth:true});}catch(error){first=await closingWinner(game);if(!first)throw error;}
+  }
+  if(id(first.usuario)!==user._id){
+    const close=first.cartonGanador.cierre;called=close.cantadas;
+    check(now-new Date(close.fecha).getTime()<=30000,'Terminó el plazo de presentación de cartones simultáneos.',409);
+    check(card.every(k=>called.includes(k))&&completionTurn(card,called)===close.turnoGanador,'El cartón no corresponde al mismo turno ganador.',409);
+    try{await wixData.insert('LOT_Ganadores',{...values,_id:game._id+'-'+user._id},{suppressAuth:true});}catch(error){const same=await wixData.query('LOT_Ganadores').eq('partida',game._id).eq('usuario',user._id).limit(1).find(O);if(!same.items.length)throw error;}
+  }
+  // Inscripciones siguen siendo temporales: permiten resolver empates y expiran por el trabajo de limpieza.
+  return resolveDigitalResult(game);
+}
+async function presentDigital(request,ctx,game){
+  const registration=await comprobarParticipacion(game,ctx.user);
+  check(registration&&new Date(registration.fechaInscripcion).getTime()<=new Date(game.inicio).getTime(),'No tienes una inscripción válida anterior al inicio.',403);
+  const ticket=request.headers?.['x-lot-carton']||request.headers?.['X-LOT-Carton'];
+  let card;try{card=verifyCard(await secret(),ticket,game,ctx.user);}catch{check(false,'El comprobante no corresponde a tu cartón asignado.',403);}
+  const resolved=await registerDigitalWinner(game,ctx.user,card);
+  return json(200,{ok:true,data:await snapshot(resolved.game,card)});
+}
