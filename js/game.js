@@ -22,9 +22,9 @@ export function makeCard(figures) {
   if (new Set(figures.map(f=>f.id)).size!==figures.length || figures.length<16) throw new Error('Baraja incompleta.');
   return shuffle(figures).slice(0,16).map(f=>f.id);
 }
-export function toggleMark(id, card, called, marks) {
+export function toggleMark(id, card, called, marks, allowUncalled=false) {
   const next = new Set(marks);
-  if (!card.includes(id) || !called.includes(id)) return next;
+  if (!card.includes(id) || (!allowUncalled&&!called.includes(id))) return next;
   next.has(id) ? next.delete(id) : next.add(id);
   return next;
 }
@@ -50,3 +50,5 @@ export function imageUrl(value) {
   }
   try { const url=new URL(value); return url.protocol==='https:' ? url.href : null; } catch { return null; }
 }
+
+export function isOneAway(card,called){return card.length===16&&new Set(card).size===16&&card.filter(id=>called.includes(id)).length===15;}

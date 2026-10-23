@@ -35,7 +35,7 @@ async function snapshot(game,carton){
   const byId=new Map(r.items.map(f=>[f._id,f]));
   const figuras=game.reglas.figuras.map(k=>{const f=byId.get(k);check(f,'La baraja de esta partida no está completa.',409);return {id:f._id,numero:f.numero,nombre:f.nombre,imagen:f.imagen||null};});
   const view=vistaPartida(game);
-  return {id:game._id,estado:game.estado,nombre:game.reglas.nombre&&!game.reglas.nombre.startsWith('LOT-')?game.reglas.nombre:'Partida de lotería',premio:game.reglas.premio||'',canto:view._canto,figuras,carton,cantadas:view.figurasCantadas};
+  return {id:game._id,estado:game.estado,nombre:game.reglas.nombre&&!game.reglas.nombre.startsWith('LOT-')?game.reglas.nombre:'Partida de lotería',premio:game.reglas.premio||'',presentacion:{resaltarCantadas:game.reglas.presentacion?.resaltarCantadas===true,audioJugadores:game.reglas.presentacion?.audioJugadores!==false,anuncioGanador:game.reglas.presentacion?.anuncioGanador||'Lotería'},canto:view._canto,figuras,carton,cantadas:view.figurasCantadas};
 }
 function failure(e){console.error('LOT_SALA',e.status||500);return json(e.status||500,{ok:false,mensaje:e.status?e.message:'No se pudo completar la operación. Intenta de nuevo.',codigo:e.code});}
 export function lotOptions(request){try{origin(request);return response({status:204,headers});}catch(e){return failure(e);}}

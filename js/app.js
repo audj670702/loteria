@@ -1,13 +1,14 @@
-import {createPregonero} from './pregonero.js?v=audio-5';
-import {DEMO_FIGURES,makeCard,shuffle,toggleMark,isFull,normalizeState,imageUrl} from './game.js';
+import {createPregonero} from './pregonero.js?v=compact-6';
+import {DEMO_FIGURES,makeCard,shuffle,toggleMark,isFull,normalizeState,imageUrl,isOneAway} from './game.js?v=compact-6';
 import {CONFIG} from './config.js';
-import {captureSession,clearSession,login,getContext,getState,enterGame,exitGame,getGames,hasSession} from './api.js?v=audio-5';
+import {captureSession,clearSession,login,getContext,getState,enterGame,exitGame,getGames,hasSession} from './api.js?v=compact-6';
 const $=id=>document.getElementById(id);
 let lobbyTimer=null,lobbyRun=0,lobbyGames=[],
 lastPresence=0, ticket='', state=null, marks=new Set(), mode='', deck=[], timer=null, controller=null, generation=0, stale=false, deferredInstall=null;
-const pregonero=createPregonero({synth:window.speechSynthesis,Utterance:window.SpeechSynthesisUtterance,onChange:view=>{$('audioToggle').disabled=!view.supported;$('audioToggle').textContent=view.enabled?'Silenciar pregonero':'Activar audio del pregonero';$('audioToggle').setAttribute('aria-pressed',String(view.enabled));$('audioRepeat').disabled=!view.canRepeat;$('audioStatus').textContent=view.status;}});
-$('audioToggle').onclick=()=>pregonero.toggle();$('audioRepeat').onclick=()=>pregonero.repeat();
-function syncAudio(){pregonero.sync(state,{hidden:document.hidden,outdated:stale});}
+function playersAudioAllowed(){return mode==='demo'||state?.presentacion?.audioJugadores!==false;}
+const pregonero=createPregonero({synth:window.speechSynthesis,Utterance:window.SpeechSynthesisUtterance,onChange:view=>{const allowed=playersAudioAllowed();$('audioToggle').disabled=!allowed||!view.supported;$('audioToggle').textContent=!allowed?'Sin audio':view.enabled?'Silenciar':'Audio';$('audioToggle').setAttribute('aria-label',!allowed?'Audio desactivado por el responsable':view.enabled?'Silenciar pregonero':'Activar audio del pregonero');$('audioToggle').setAttribute('aria-pressed',String(view.enabled));$('audioRepeat').disabled=!allowed||!view.canRepeat;$('audioStatus').textContent=allowed?view.status:'Audio desactivado por el responsable. Sigue el canto del panel o el anuncio en vivo.';}});
+$('audioToggle').onclick=()=>{if(playersAudioAllowed())pregonero.toggle();};$('audioRepeat').onclick=()=>{if(playersAudioAllowed())pregonero.repeat();};
+function syncAudio(){if(!playersAudioAllowed()){pregonero.reset();return;}pregonero.sync(state,{hidden:document.hidden,outdated:stale});}
 function message(text='',error=false){$('message').textContent=text;$('message').className='message'+(error?' error':'');}
 function figure(id){return state.figuras.find(f=>f.id===id);}
 function textName(id){const f=figure(id);return f.numero+' · '+f.nombre;}
@@ -17,24 +18,25 @@ document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.closest('di
 $('how').onclick=()=>openDialog('helpDialog');
 function updateProgress(){
   const total=state.carton.filter(id=>marks.has(id)).length;
-  $('progress').textContent=total+' / 16';$('progressBar').style.width=(100*total/16)+'%';
+  $('progress').textContent=total+' / 16 marcadas';
   $('claim').disabled=stale||state.estado!=='EN_CURSO'||!isFull(state.carton,state.cantadas,marks);
 }
 function renderBoard(){
   $('board').replaceChildren(...state.carton.map(id=>{
-    const f=figure(id),called=state.cantadas.includes(id),marked=marks.has(id);
-    const tile=document.createElement('button');tile.type='button';tile.className='tile'+(called?' called':'')+(marked?' marked':'');
-    tile.setAttribute('aria-label',textName(id)+(called?' · cantada':' · aún no cantada'));tile.setAttribute('aria-pressed',String(marked));
-    tile.disabled=stale||state.estado!=='EN_CURSO'||!called;
+    const f=figure(id),called=state.cantadas.includes(id),marked=marks.has(id),hint=state.presentacion?.resaltarCantadas===true;
+    const tile=document.createElement('button');tile.type='button';tile.className='tile'+(hint&&called?' called':'')+(marked?' marked':'');
+    tile.setAttribute('aria-label',textName(id)+(hint?(called?' · cantada':' · aún no cantada'):''));tile.setAttribute('aria-pressed',String(marked));
+    tile.disabled=stale||state.estado!=='EN_CURSO';
     const number=document.createElement('span');number.className='number';number.textContent=f.numero;
     const image=document.createElement('span');image.className='art';image.append(art(f));
     const name=document.createElement('span');name.className='name';name.textContent=f.nombre;
     tile.append(number,image,name);
-    tile.onclick=()=>{if(stale||state.estado!=='EN_CURSO')return;marks=toggleMark(id,state.carton,state.cantadas,marks);tile.classList.toggle('marked',marks.has(id));tile.setAttribute('aria-pressed',String(marks.has(id)));updateProgress();};
+    tile.onclick=()=>{if(stale||state.estado!=='EN_CURSO')return;marks=toggleMark(id,state.carton,state.cantadas,marks,true);tile.classList.toggle('marked',marks.has(id));tile.setAttribute('aria-pressed',String(marks.has(id)));updateProgress();};
     return tile;
-  }));updateProgress();
+  }));updateProgress();const near=state.estado==='EN_CURSO'&&!stale&&isOneAway(state.carton,state.cantadas);$('boardPanel').classList.toggle('one-away',near);$('nearNotice').hidden=!near;
 }
 function render(){
+  document.body.classList.toggle('playing',state.estado==='EN_CURSO');$('waitingNotice').hidden=state.estado!=='BORRADOR';$('gameTitle').textContent=state.nombre||'Lotería tradicional';const phrase=state.presentacion?.anuncioGanador||'Lotería';$('claim').textContent='¡'+phrase+'! Presentar cartón';$('claimTitle').textContent='¡'+phrase+'!';const total=state.figuras.length,count=state.cantadas.length;$('deckProgress').max=total;$('deckProgress').value=count;$('deckRemaining').textContent=(total-count)+' restantes';$('deckProgress').setAttribute('aria-label',count+' de '+total+' figuras cantadas');$('markHint').textContent=state.presentacion?.resaltarCantadas?'El responsable permite resaltar las figuras cantadas. Tú marcas tu cartón.':'Escucha el canto y marca tu cartón. Las figuras cantadas no se resaltan.';
   $('gamePrize').textContent=state.premio?'Premio: '+state.premio:'Sin premio anunciado';$('gameCanto').textContent=state.canto?(state.canto.modo==='AUTOMATICO'?'Canto automático':'Canto manual')+(state.canto.pausado?' · En pausa':''):'';
   $('stateLabel').textContent={BORRADOR:'En espera',EN_CURSO:'En curso',FINALIZADA:'Finalizada',CANCELADA:'Cancelada'}[state.estado];
   $('calledCount').textContent=state.cantadas.length+' figuras cantadas';
@@ -47,8 +49,8 @@ function render(){
 }
 function enter(){ $('lobby').hidden=true;$('welcome').hidden=true;$('room').hidden=false;render();$('room').scrollIntoView({block:'start'}); }
 function stop(){generation++;clearTimeout(timer);controller?.abort();controller=null;}
-function clearRoom(){stop();pregonero.reset();ticket='';$('claimProof').value='';state=null;marks.clear();deck=[];mode='';stale=false;document.querySelectorAll('dialog[open]').forEach(d=>d.close());$('board').replaceChildren();$('history').replaceChildren();$('claimFigures').replaceChildren();$('room').hidden=true;$('welcome').hidden=false;message();$('demo').focus();}
-$('demo').onclick=()=>{pregonero.reset();stopLobby();$('lobby').hidden=true;stop();ticket='';mode='demo';stale=false;marks=new Set();state={id:'demostracion',estado:'EN_CURSO',figuras:DEMO_FIGURES,carton:makeCard(DEMO_FIGURES),cantadas:[]};deck=shuffle(DEMO_FIGURES.map(f=>f.id));$('userName').textContent='Visitante de demostración';$('eoName').textContent='Sin conexión a una empresa';$('roomMode').textContent='DEMOSTRACIÓN · SIN PREMIOS';$('sync').textContent='Prueba local';$('demoTools').hidden=false;message('Esta demostración no crea partidas ni ganadores reales.');enter();};
+function clearRoom(){document.body.classList.remove('playing');stop();pregonero.reset();ticket='';$('claimProof').value='';state=null;marks.clear();deck=[];mode='';stale=false;document.querySelectorAll('dialog[open]').forEach(d=>d.close());$('board').replaceChildren();$('history').replaceChildren();$('claimFigures').replaceChildren();$('room').hidden=true;$('welcome').hidden=false;message();$('demo').focus();}
+$('demo').onclick=()=>{pregonero.reset();stopLobby();$('lobby').hidden=true;stop();ticket='';mode='demo';stale=false;marks=new Set();state={id:'demostracion',estado:'EN_CURSO',figuras:DEMO_FIGURES,carton:makeCard(DEMO_FIGURES),cantadas:[],presentacion:{resaltarCantadas:false,audioJugadores:true,anuncioGanador:'Lotería'}};deck=shuffle(DEMO_FIGURES.map(f=>f.id));$('userName').textContent='Visitante de demostración';$('eoName').textContent='Sin conexión a una empresa';$('roomMode').textContent='DEMOSTRACIÓN · SIN PREMIOS';$('sync').textContent='Prueba local';$('demoTools').hidden=false;message('Esta demostración no crea partidas ni ganadores reales.');enter();};
 $('next').onclick=()=>{if(mode!=='demo'||!deck.length)return;state.cantadas.push(deck.shift());render();if(!deck.length)message('Se cantó toda la baraja. Completa las marcas de tu cartón para probar el cierre.');};
 $('claim').onclick=()=>{if(stale||state.estado!=='EN_CURSO'||!isFull(state.carton,state.cantadas,marks))return;$('claimMode').textContent=mode==='demo'?'DEMOSTRACIÓN · SIN PREMIOS':'CARTÓN PARA REVISIÓN';$('claimText').textContent=mode==='demo'?'Completaste la prueba. No se ha registrado un ganador real ni se ha asignado un premio.':'Muestra este cartón al responsable. Esta pantalla no confirma ni registra un ganador.';$('claimFigures').replaceChildren(...state.carton.map(id=>{const li=document.createElement('li');li.textContent=textName(id);return li;}));$('digitalEvidence').hidden=mode!=='live';$('claimProof').value=ticket;openDialog('claimDialog');};
 $('copyProof').onclick=async()=>{try{await navigator.clipboard.writeText(ticket);$('proofStatus').textContent='Comprobante copiado. Entrégalo al responsable.';}catch{$('claimProof').select();$('proofStatus').textContent='Selecciona y copia el comprobante.';}};
@@ -60,7 +62,7 @@ async function poll(id,runId){
     const presenceDue=Date.now()-lastPresence>20000;
     const incoming=normalizeState(await getState(id,ticket,controller.signal,presenceDue));if(presenceDue)lastPresence=Date.now();if(runId!==generation)return;
     if(incoming.id!==id || incoming.carton.some((key,i)=>key!==state.carton[i]))throw new Error('El cartón cambió. Consulta al responsable antes de continuar.');
-    state=incoming;stale=false;marks=new Set([...marks].filter(k=>state.cantadas.includes(k)));$('sync').textContent='Actualizado';message();render();
+    state=incoming;stale=false;marks=new Set([...marks].filter(k=>state.carton.includes(k)));$('sync').textContent='Actualizado';message();render();
   } catch(error){if(runId!==generation)return;if(error.code==='LOT_RETIRO'){clearRoom();await loadLobby();message(error.message,true);return;}stale=true;$('sync').textContent='Sin actualizar';message(error.message||'No se pudo actualizar. Tus marcas siguen en esta pestaña.',true);renderBoard();syncAudio();}
   finally{clearTimeout(timeout);if(runId===generation && ['BORRADOR','EN_CURSO'].includes(state?.estado))timer=setTimeout(()=>poll(id,runId),4000);}
 }
