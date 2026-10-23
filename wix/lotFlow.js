@@ -6,7 +6,10 @@ export function configPartida(datos={}) {
   const intervalo=Number(datos.intervalo||8);
   if(!['MANUAL','AUTOMATICO'].includes(modo))throw new Error('Elige canto manual o automático.');
   if(!Number.isSafeInteger(intervalo)||intervalo<5||intervalo>120)throw new Error('El intervalo debe ser de 5 a 120 segundos.');
-  return {nombre,premio,canto:{modo,intervalo,pausado:false,acumuladoMs:0,desde:null,orden:[]}};
+  const anuncioGanador=String(datos.anuncioGanador??'Lotería').trim().replace(/\s+/g,' ');
+  if(!anuncioGanador||anuncioGanador.length>40)throw new Error('El anuncio de cartón lleno debe tener entre 1 y 40 caracteres.');
+  const presentacion={resaltarCantadas:datos.resaltarCantadas===true,audioJugadores:datos.audioJugadores!==false,anuncioGanador};
+  return {nombre,premio,presentacion,canto:{modo,intervalo,pausado:false,acumuladoMs:0,desde:null,orden:[]}};
 }
 export function ingresoAbierto(game) {return game.estado==='BORRADOR'&&(game.reglas?.version<2||game.reglas?.ingresoAbierto===true);}
 export function transcurrido(game,now=Date.now()) {
