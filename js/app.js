@@ -67,7 +67,7 @@ function renderHistory(){
 function render(){
   document.body.classList.toggle('playing',state.estado==='EN_CURSO');$('waitingNotice').hidden=state.estado!=='BORRADOR';$('gameTitle').textContent=state.nombre||'Lotería tradicional';const phrase=formatClaim(state.presentacion?.anuncioGanador);$('claimLabel').textContent=phrase;$('claim').setAttribute('aria-label',phrase+' Presentar cartón');$('claim').title=phrase+' Presentar cartón';const total=state.figuras.length,count=state.cantadas.length;$('deckProgress').max=total;$('deckProgress').value=count;$('deckRemaining').textContent=(total-count)+' restantes';$('deckProgress').setAttribute('aria-label',count+' de '+total+' figuras cantadas');$('markHint').textContent=state.presentacion?.resaltarCantadas?'El responsable permite resaltar las figuras cantadas. Tú marcas tu cartón.':'Escucha el canto y marca tu cartón. Las figuras cantadas no se resaltan.';
   $('gamePrize').textContent=state.premio?'Premio: '+state.premio:'Sin premio anunciado';$('gameCanto').textContent=state.canto?(state.canto.modo==='AUTOMATICO'?'Canto automático':'Canto manual')+(state.canto.pausado?' · En pausa':''):'';
-  $('stateLabel').textContent={BORRADOR:'En espera',EN_CURSO:'En curso',FINALIZADA:'Finalizada',CANCELADA:'Cancelada'}[state.estado];
+  $('stateLabel').textContent=state.estado==='EN_CURSO'&&state.cantadas.length===state.figuras.length?'Canto terminado · presenta tu cartón':{BORRADOR:'En espera',EN_CURSO:'En curso',FINALIZADA:'Finalizada',CANCELADA:'Cancelada'}[state.estado];
   $('calledCount').textContent=state.cantadas.length+' cantadas';
   renderLastFigure();renderHistory();
   $('next').disabled=mode!=='demo'||deck.length===0;
@@ -80,7 +80,7 @@ $('demo').onclick=()=>{pregonero.reset();effects.reset();endStamp='';stopLobby()
 $('next').onclick=()=>{if(mode!=='demo'||!deck.length)return;state.cantadas.push(deck.shift());render();if(!deck.length)message('Terminó el canto. Puedes presentar tu cartón completo.');};
 function renderResult(){
   const winners=state.ganadores||[];if(state.estado!=='FINALIZADA'||!winners.length)return;
-  const stamp=state.id+':'+winners.map(w=>w.usuario).join(',');if(stamp===endStamp)return;endStamp=stamp;
+  $('resultClaim').hidden=$('claim').disabled;const stamp=state.id+':'+winners.map(w=>w.usuario).join(',');if(stamp===endStamp)return;endStamp=stamp;
   $('resultTitle').textContent=winners.length>1?'¡Tenemos ganadores!':'¡Tenemos ganador!';
   $('resultNames').replaceChildren(...winners.map(w=>{const row=document.createElement('div');row.className='winner-person';const avatar=document.createElement('span');avatar.className='player-avatar';avatar.textContent=(w.nombre||'J')[0];const url=imageUrl(w.avatar);if(url){const img=document.createElement('img');img.src=url;img.alt='';avatar.append(img);}const name=document.createElement('strong');name.textContent=w.nombre;row.append(avatar,name);return row;}));
   $('resultPrize').textContent=state.premio?'Premio: '+state.premio:'Cartón completo validado por el sistema.';
@@ -105,7 +105,7 @@ async function poll(id,runId){
     const presenceDue=Date.now()-lastPresence>20000;
     const incoming=normalizeState(await getState(id,ticket,controller.signal,presenceDue));if(presenceDue)lastPresence=Date.now();if(runId!==generation)return;
     if(incoming.id!==id || incoming.carton.some((key,i)=>key!==state.carton[i]))throw new Error('El cartón cambió. Consulta al responsable antes de continuar.');
-    if(presenting)return;state=incoming;stale=false;marks=new Set([...marks].filter(k=>state.carton.includes(k)));$('sync').textContent='Actualizado';message();render();
+    if(presenting||state.cierre&&incoming.cierre?.fecha!==state.cierre.fecha)return;state=incoming;stale=false;marks=new Set([...marks].filter(k=>state.carton.includes(k)));$('sync').textContent='Actualizado';message();render();
   } catch(error){if(runId!==generation)return;if(error.code==='LOT_RETIRO'){clearRoom();await loadLobby();message(error.message,true);return;}stale=true;$('sync').textContent='Sin actualizar';message(error.message||'No se pudo actualizar. Tus marcas siguen en esta pestaña.',true);renderBoard();syncAudio();}
   finally{clearTimeout(timeout);if(runId===generation && (['BORRADOR','EN_CURSO'].includes(state?.estado)||state?.cierre&&Date.now()-new Date(state.cierre.fecha).getTime()<35000))timer=setTimeout(()=>poll(id,runId),1500);}
 }
