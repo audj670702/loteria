@@ -52,3 +52,5 @@ export function imageUrl(value) {
 }
 
 export function isOneAway(card,called){return card.length===16&&new Set(card).size===16&&card.filter(id=>called.includes(id)).length===15;}
+
+export function formatClaim(value){const phrase=String(value||'Lotería').trim().replace(/^[¡!\s]+|[¡!\s]+$/gu,'').trim()||'Lotería';return '¡'+phrase+'!';}
