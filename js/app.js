@@ -1,7 +1,8 @@
-import {createPregonero} from './pregonero.js?v=compact-6';
-import {DEMO_FIGURES,makeCard,shuffle,toggleMark,isFull,normalizeState,imageUrl,isOneAway} from './game.js?v=compact-6';
+import {createBoardView} from './board-view.js?v=stable-7';
+import {createPregonero} from './pregonero.js?v=stable-7';
+import {DEMO_FIGURES,makeCard,shuffle,toggleMark,isFull,normalizeState,imageUrl,isOneAway} from './game.js?v=stable-7';
 import {CONFIG} from './config.js';
-import {captureSession,clearSession,login,getContext,getState,enterGame,exitGame,getGames,hasSession} from './api.js?v=compact-6';
+import {captureSession,clearSession,login,getContext,getState,enterGame,exitGame,getGames,hasSession} from './api.js?v=stable-7';
 const $=id=>document.getElementById(id);
 let lobbyTimer=null,lobbyRun=0,lobbyGames=[],
 lastPresence=0, ticket='', state=null, marks=new Set(), mode='', deck=[], timer=null, controller=null, generation=0, stale=false, deferredInstall=null;
@@ -21,35 +22,51 @@ function updateProgress(){
   $('progress').textContent=total+' / 16 marcadas';
   $('claim').disabled=stale||state.estado!=='EN_CURSO'||!isFull(state.carton,state.cantadas,marks);
 }
+const boardView=createBoardView({container:$('board'),createTile(id){
+  const f=figure(id),tile=document.createElement('button');tile.type='button';tile.className='tile';
+  const number=document.createElement('span');number.className='number';number.textContent=f.numero;
+  const image=document.createElement('span');image.className='art';image.append(art(f));
+  const name=document.createElement('span');name.className='name';name.textContent=f.nombre;
+  tile.append(number,image,name);
+  tile.onclick=()=>{if(stale||state.estado!=='EN_CURSO')return;marks=toggleMark(id,state.carton,state.cantadas,marks,true);tile.classList.toggle('marked',marks.has(id));tile.setAttribute('aria-pressed',String(marks.has(id)));updateProgress();};
+  return tile;
+},updateTile(tile,id){
+  const called=state.cantadas.includes(id),marked=marks.has(id),hint=state.presentacion?.resaltarCantadas===true;
+  tile.classList.toggle('called',hint&&called);tile.classList.toggle('marked',marked);
+  const label=textName(id)+(hint?(called?' · cantada':' · aún no cantada'):'');
+  if(tile.getAttribute('aria-label')!==label)tile.setAttribute('aria-label',label);
+  if(tile.getAttribute('aria-pressed')!==String(marked))tile.setAttribute('aria-pressed',String(marked));
+  const disabled=stale||state.estado!=='EN_CURSO';if(tile.disabled!==disabled)tile.disabled=disabled;
+}});
+let lastFigureStamp='',historyIds=[];
 function renderBoard(){
-  $('board').replaceChildren(...state.carton.map(id=>{
-    const f=figure(id),called=state.cantadas.includes(id),marked=marks.has(id),hint=state.presentacion?.resaltarCantadas===true;
-    const tile=document.createElement('button');tile.type='button';tile.className='tile'+(hint&&called?' called':'')+(marked?' marked':'');
-    tile.setAttribute('aria-label',textName(id)+(hint?(called?' · cantada':' · aún no cantada'):''));tile.setAttribute('aria-pressed',String(marked));
-    tile.disabled=stale||state.estado!=='EN_CURSO';
-    const number=document.createElement('span');number.className='number';number.textContent=f.numero;
-    const image=document.createElement('span');image.className='art';image.append(art(f));
-    const name=document.createElement('span');name.className='name';name.textContent=f.nombre;
-    tile.append(number,image,name);
-    tile.onclick=()=>{if(stale||state.estado!=='EN_CURSO')return;marks=toggleMark(id,state.carton,state.cantadas,marks,true);tile.classList.toggle('marked',marks.has(id));tile.setAttribute('aria-pressed',String(marks.has(id)));updateProgress();};
-    return tile;
-  }));updateProgress();const near=state.estado==='EN_CURSO'&&!stale&&isOneAway(state.carton,state.cantadas);$('boardPanel').classList.toggle('one-away',near);$('nearNotice').hidden=!near;
+  boardView.render(state.carton);updateProgress();
+  const near=state.estado==='EN_CURSO'&&!stale&&isOneAway(state.carton,state.cantadas);$('boardPanel').classList.toggle('one-away',near);$('nearNotice').hidden=!near;
+}
+function renderLastFigure(){
+  const id=state.cantadas.at(-1),f=id?figure(id):null;
+  const stamp=JSON.stringify(f?[f.id,f.numero,f.nombre,f.imagen]:['waiting']);if(stamp===lastFigureStamp)return;
+  lastFigureStamp=stamp;const title=document.createElement('h2');title.textContent=f?f.nombre:'Esperando el canto';
+  if(f&&imageUrl(f.imagen)){const image=document.createElement('span');image.className='last-art';image.append(art(f));$('last').replaceChildren(image,title);}
+  else{const number=document.createElement('span');number.className='last-number';number.textContent=f?f.numero:'—';$('last').replaceChildren(number,title);}
+}
+function renderHistory(){
+  if(historyIds.some((id,i)=>state.cantadas[i]!==id)){historyIds=[];$('history').replaceChildren();}
+  for(const id of state.cantadas.slice(historyIds.length)){const li=document.createElement('li');li.textContent=textName(id);$('history').append(li);}
+  historyIds=[...state.cantadas];
 }
 function render(){
   document.body.classList.toggle('playing',state.estado==='EN_CURSO');$('waitingNotice').hidden=state.estado!=='BORRADOR';$('gameTitle').textContent=state.nombre||'Lotería tradicional';const phrase=state.presentacion?.anuncioGanador||'Lotería';$('claim').textContent='¡'+phrase+'! Presentar cartón';$('claimTitle').textContent='¡'+phrase+'!';const total=state.figuras.length,count=state.cantadas.length;$('deckProgress').max=total;$('deckProgress').value=count;$('deckRemaining').textContent=(total-count)+' restantes';$('deckProgress').setAttribute('aria-label',count+' de '+total+' figuras cantadas');$('markHint').textContent=state.presentacion?.resaltarCantadas?'El responsable permite resaltar las figuras cantadas. Tú marcas tu cartón.':'Escucha el canto y marca tu cartón. Las figuras cantadas no se resaltan.';
   $('gamePrize').textContent=state.premio?'Premio: '+state.premio:'Sin premio anunciado';$('gameCanto').textContent=state.canto?(state.canto.modo==='AUTOMATICO'?'Canto automático':'Canto manual')+(state.canto.pausado?' · En pausa':''):'';
   $('stateLabel').textContent={BORRADOR:'En espera',EN_CURSO:'En curso',FINALIZADA:'Finalizada',CANCELADA:'Cancelada'}[state.estado];
   $('calledCount').textContent=state.cantadas.length+' figuras cantadas';
-  const id=state.cantadas.at(-1);$('last').replaceChildren();
-  const number=document.createElement('span');number.className='last-number';number.textContent=id?figure(id).numero:'—';
-  const title=document.createElement('h2');title.textContent=id?figure(id).nombre:'Esperando el canto';if(id && imageUrl(figure(id).imagen)){const image=document.createElement('span');image.className='last-art';image.append(art(figure(id)));$('last').append(image,title);}else $('last').append(number,title);
-  $('history').replaceChildren(...state.cantadas.map(id=>{const li=document.createElement('li');li.textContent=textName(id);return li;}));
+  renderLastFigure();renderHistory();
   $('next').disabled=mode!=='demo'||deck.length===0;
   renderBoard();syncAudio();
 }
 function enter(){ $('lobby').hidden=true;$('welcome').hidden=true;$('room').hidden=false;render();$('room').scrollIntoView({block:'start'}); }
 function stop(){generation++;clearTimeout(timer);controller?.abort();controller=null;}
-function clearRoom(){document.body.classList.remove('playing');stop();pregonero.reset();ticket='';$('claimProof').value='';state=null;marks.clear();deck=[];mode='';stale=false;document.querySelectorAll('dialog[open]').forEach(d=>d.close());$('board').replaceChildren();$('history').replaceChildren();$('claimFigures').replaceChildren();$('room').hidden=true;$('welcome').hidden=false;message();$('demo').focus();}
+function clearRoom(){document.body.classList.remove('playing');stop();pregonero.reset();ticket='';$('claimProof').value='';state=null;marks.clear();deck=[];mode='';stale=false;document.querySelectorAll('dialog[open]').forEach(d=>d.close());boardView.reset();lastFigureStamp='';historyIds=[];$('history').replaceChildren();$('claimFigures').replaceChildren();$('room').hidden=true;$('welcome').hidden=false;message();$('demo').focus();}
 $('demo').onclick=()=>{pregonero.reset();stopLobby();$('lobby').hidden=true;stop();ticket='';mode='demo';stale=false;marks=new Set();state={id:'demostracion',estado:'EN_CURSO',figuras:DEMO_FIGURES,carton:makeCard(DEMO_FIGURES),cantadas:[],presentacion:{resaltarCantadas:false,audioJugadores:true,anuncioGanador:'Lotería'}};deck=shuffle(DEMO_FIGURES.map(f=>f.id));$('userName').textContent='Visitante de demostración';$('eoName').textContent='Sin conexión a una empresa';$('roomMode').textContent='DEMOSTRACIÓN · SIN PREMIOS';$('sync').textContent='Prueba local';$('demoTools').hidden=false;message('Esta demostración no crea partidas ni ganadores reales.');enter();};
 $('next').onclick=()=>{if(mode!=='demo'||!deck.length)return;state.cantadas.push(deck.shift());render();if(!deck.length)message('Se cantó toda la baraja. Completa las marcas de tu cartón para probar el cierre.');};
 $('claim').onclick=()=>{if(stale||state.estado!=='EN_CURSO'||!isFull(state.carton,state.cantadas,marks))return;$('claimMode').textContent=mode==='demo'?'DEMOSTRACIÓN · SIN PREMIOS':'CARTÓN PARA REVISIÓN';$('claimText').textContent=mode==='demo'?'Completaste la prueba. No se ha registrado un ganador real ni se ha asignado un premio.':'Muestra este cartón al responsable. Esta pantalla no confirma ni registra un ganador.';$('claimFigures').replaceChildren(...state.carton.map(id=>{const li=document.createElement('li');li.textContent=textName(id);return li;}));$('digitalEvidence').hidden=mode!=='live';$('claimProof').value=ticket;openDialog('claimDialog');};
