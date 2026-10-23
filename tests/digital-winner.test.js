@@ -47,3 +47,14 @@ test('entrada digital exige identidad, EO, inscripción previa y firma antes de 
  for(const options of [{token:'invalid'},{eo:'other'},{enrolled:false},{ticket:'forged'}]){const {r,inserts}=await run(options);assert.ok([401,403].includes(r.status));assert.equal(inserts,0);}
  const {r,inserts}=await run();assert.equal(r.status,200);assert.equal(inserts,1);assert.equal(JSON.parse(r.body).data.estado,'FINALIZADA');
 });
+
+test('inicio suena una vez al pasar de espera a curso; no al pausar, reanudar ni volver a partida avanzada',async()=>{
+ const {e,files}=effectsHarness();e.unlock();await settle();const card=Array.from({length:16},(_,i)=>'f'+i),game={id:'start',estado:'BORRADOR',carton:card,figuras:card,cantadas:[]},start=files['./assets/inicia_partida.mp3'],baseline=start.plays;
+ e.sync(game);assert.equal(start.plays,baseline);e.sync({...game,estado:'EN_CURSO'});assert.equal(start.plays,baseline+1);
+ e.sync({...game,estado:'EN_CURSO',canto:{pausado:true}});e.sync({...game,estado:'EN_CURSO'});assert.equal(start.plays,baseline+1);
+ e.reset();e.sync({...game,estado:'EN_CURSO',cantadas:card.slice(0,4)});assert.equal(start.plays,baseline+1);
+ e.sync({...game,id:'next'});e.sync({...game,id:'next',estado:'EN_CURSO'});assert.equal(start.plays,baseline+2);
+});
+test('inicio respeta permiso ADM, silencio y ventana de inicio; no lo reproduce tarde al activar audio',async()=>{
+ for(const opt of [{allowed:false},{hidden:true},{outdated:true}]){const {e,files}=effectsHarness();e.unlock();await settle();const card=Array.from({length:16},(_,i)=>'f'+i),game={id:'g',estado:'BORRADOR',carton:card,figuras:card,cantadas:[]},start=files['./assets/inicia_partida.mp3'],baseline=start.plays;e.sync(game,opt);e.sync({...game,estado:'EN_CURSO'},opt);assert.equal(start.plays,baseline);e.sync({...game,estado:'EN_CURSO',cantadas:['f0']});assert.equal(start.plays,baseline);}
+});
