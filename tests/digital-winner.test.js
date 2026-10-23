@@ -15,8 +15,27 @@ test('un cierre existente no acepta una figura posterior ni se reanuda con una e
 test('botón y última carta se basan en canto real, incluso con cero marcas o marcas erróneas',()=>{const card=Array.from({length:16},(_,i)=>'f'+i);assert.equal(isOneAway(card,card.slice(0,15)),true);assert.equal(isSystemFull(card,card.slice(0,15)),false);assert.equal(isSystemFull(card,card),true);assert.equal(isOneAway(card,card),false);});
 function effectsHarness(){const files={};const e=createEffects({makeAudio:src=>{const a={src,paused:true,plays:0,currentTime:0,play(){this.paused=false;this.plays++;return Promise.resolve();},pause(){this.paused=true;}};files[src]=a;return a;}});return {e,files};}
 const settle=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
-test('audio última carta en bucle a 15 coincidencias; detener al completar y fin sólo una vez',async()=>{const {e,files}=effectsHarness();e.unlock();await settle();const card=Array.from({length:16},(_,i)=>'f'+i),state={id:'g',estado:'EN_CURSO',carton:card,figuras:card.map(id=>({id})),cantadas:card.slice(0,15)};e.sync(state);assert.equal(files['./assets/carta_final.mp3'].loop,true);assert.equal(files['./assets/carta_final.mp3'].paused,false);e.sync({...state,cantadas:card});assert.equal(files['./assets/carta_final.mp3'].paused,true);const count=files['./assets/partida_terminada.mp3'].plays;e.sync({...state,estado:'FINALIZADA',cantadas:card});assert.equal(files['./assets/partida_terminada.mp3'].plays,count);});
-test('silencio, pausa, pérdida de conexión y configuración ADM suspenden el bucle',async()=>{const {e,files}=effectsHarness();e.unlock();await settle();const card=Array.from({length:16},(_,i)=>'f'+i),state={id:'g',estado:'EN_CURSO',carton:card,figuras:card,cantadas:card.slice(0,15)};for(const opts of [{allowed:false},{outdated:true},{hidden:true}]){e.sync(state);assert.equal(files['./assets/carta_final.mp3'].paused,false);e.sync(state,opts);assert.equal(files['./assets/carta_final.mp3'].paused,true);}e.sync({...state,canto:{pausado:true}});assert.equal(files['./assets/carta_final.mp3'].paused,true);e.setEnabled(false);e.sync(state);assert.equal(files['./assets/carta_final.mp3'].paused,true);});
+test('última carta suena una vez: no loop ni repetición al sincronizar, silenciar o volver',async()=>{
+ const {e,files}=effectsHarness();assert.equal(files['./assets/tap.mp3'],undefined);e.unlock();await settle();
+ const card=Array.from({length:16},(_,i)=>'f'+i),state={id:'g',estado:'EN_CURSO',carton:card,figuras:Array.from({length:54},(_,i)=>'f'+i),cantadas:card.slice(0,15)};
+ const near=files['./assets/carta_final.mp3'],baseline=near.plays;e.sync(state);assert.equal(near.loop,false);assert.equal(near.plays,baseline+1);
+ near.paused=true;for(let i=0;i<5;i++)e.sync(state);e.setEnabled(false);e.setEnabled(true);e.sync(state,{hidden:true});e.sync(state);assert.equal(near.plays,baseline+1);
+ e.sync({...state,cantadas:card});assert.equal(near.paused,true);
+ e.sync({...state,id:'otra'});assert.equal(near.plays,baseline+2);
+});
+test('cartón lleno y 54 cantadas no disparan fin; sólo presentación ganadora confirmada',async()=>{
+ const {e,files}=effectsHarness();e.unlock();await settle();const card=Array.from({length:16},(_,i)=>'f'+i),pool=Array.from({length:54},(_,i)=>'f'+i),state={id:'g',estado:'EN_CURSO',carton:card,figuras:pool,cantadas:card};
+ const end=files['./assets/partida_terminada.mp3'],baseline=end.plays;
+ e.sync(state);e.sync({...state,cantadas:pool});assert.equal(end.plays,baseline);
+ e.sync({...state,estado:'FINALIZADA'});assert.equal(end.plays,baseline);
+ e.sync({...state,estado:'FINALIZADA',cierre:{motivo:'GANADOR_DIGITAL'},ganadores:[]});assert.equal(end.plays,baseline);
+ const confirmed={...state,estado:'FINALIZADA',cierre:{motivo:'GANADOR_DIGITAL'},ganadores:[{usuario:'u1'}]};e.sync(confirmed);assert.equal(end.plays,baseline+1);e.sync(confirmed);assert.equal(end.plays,baseline+1);
+});
+test('silencio, pausa, desconexión y política ADM impiden iniciar el aviso',async()=>{
+ const card=Array.from({length:16},(_,i)=>'f'+i),state={id:'g',estado:'EN_CURSO',carton:card,figuras:card,cantadas:card.slice(0,15)};
+ for(const opts of [{allowed:false},{outdated:true},{hidden:true}]){const {e,files}=effectsHarness();e.unlock();await settle();const near=files['./assets/carta_final.mp3'],baseline=near.plays;e.sync(state,opts);assert.equal(near.plays,baseline);e.sync(state);assert.equal(near.plays,baseline+1);}
+ const {e,files}=effectsHarness();e.unlock();await settle();const baseline=files['./assets/carta_final.mp3'].plays;e.sync({...state,canto:{pausado:true}});e.setEnabled(false);e.sync(state);assert.equal(files['./assets/carta_final.mp3'].plays,baseline);
+});
 test('entrada digital exige identidad, EO, inscripción previa y firma antes de registrar',async()=>{
  const card=Array.from({length:16},(_,i)=>'f'+i),base={_id:'game-12345678901',enteOperador:'eo1',inicio:new Date(Date.now()-100000),estado:'EN_CURSO',catalogo:'cat1',reglas:{modalidad:'CARTON_LLENO',filas:4,columnas:4,figuras:card,canto:{modo:'MANUAL'}},figurasCantadas:card};
  async function run({token='valid',eo='eo1',enrolled=true,ticket='signed'}={}){

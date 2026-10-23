@@ -1,4 +1,4 @@
-# LOTERÍA 0.8.0 — presentación digital y últimos momentos
+# LOTERÍA 0.8.1 — presentación digital y últimos momentos
 
 Presentar usa el comprobante firmado del cartón asignado y la identidad autenticada, no las marcas. El servidor verifica EO, inscripción anterior al inicio, firma, baraja y 16 figuras realmente cantadas. Una presentación inválida no altera el juego.
 
@@ -8,7 +8,7 @@ Participantes y ganadores se integran en el bloque 4. Los ganadores se destacan 
 
 La app ya no muestra el comprobante antes de enviar. Habilita el grito configurado con 16 coincidencias reales, incluso con cero marcas. Después de la validación muestra el anuncio de ganador con nombre, avatar y premio. Continúa actualizando 35 segundos para resolver presentaciones simultáneas.
 
-Los efectos tap.mp3, carta_final.mp3 y partida_terminada.mp3 se consumen desde assets. La última carta se reproduce en bucle con 15 coincidencias reales, independientemente de marcas. Pausa, pérdida de sincronización, silencio o política ADM suspenden el efecto; completar el cartón o finalizar lo detienen. El final suena una vez al agotarse la baraja o finalizar. La baraja agotada sigue permitiendo presentar, sin inventar un ganador. El navegador requiere una interacción para habilitar audio. Efectos y voz tienen controles en el menú.
+Los efectos carta_final.mp3 y partida_terminada.mp3 se consumen desde assets. La última carta se reproduce una sola vez por partida, sin bucle, con 15 coincidencias reales, independientemente de marcas. El toque de tarjeta es silencioso y ya no carga tap.mp3. Pausa, pérdida de sincronización, silencio o política ADM suspenden el efecto; completar el cartón o finalizar lo detienen. El final suena únicamente tras una presentación digital validada, con estado FINALIZADA, motivo GANADOR_DIGITAL y al menos un ganador. Completar el cartón o agotar las 54 figuras no termina la partida ni dispara ese audio. La baraja agotada sigue permitiendo presentar, sin inventar un ganador. El navegador requiere una interacción para habilitar audio. Efectos y voz tienen controles en el menú.
 
 El mínimo de canto sigue en 5 segundos. Se consulta el estado cada 1.5 segundos para reducir estados intermedios omitidos; nunca se anticipan figuras en cliente. El contorno se refuerza con borde rojo y resplandor interior/exterior. Preferencias de movimiento reducido conservan una señal estática fuerte.
 
