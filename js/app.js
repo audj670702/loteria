@@ -1,4 +1,4 @@
-import {createEffects} from './effects.js?v=cierre-9';
+import {createEffects} from './effects.js?v=audio-10';
 import {createBoardView} from './board-view.js?v=cierre-9';
 import {createPregonero} from './pregonero.js?v=cierre-9';
 import {DEMO_FIGURES,makeCard,shuffle,toggleMark,isSystemFull,normalizeState,imageUrl,isOneAway,formatClaim} from './game.js?v=cierre-9';
@@ -37,7 +37,7 @@ const boardView=createBoardView({container:$('board'),createTile(id){
   const image=document.createElement('span');image.className='art';image.append(art(f));
   const name=document.createElement('span');name.className='name';name.textContent=f.nombre;
   tile.append(number,image,name);
-  tile.onclick=()=>{if(stale||state.estado!=='EN_CURSO')return;effects.tap();marks=toggleMark(id,state.carton,state.cantadas,marks,true);tile.classList.toggle('marked',marks.has(id));tile.setAttribute('aria-pressed',String(marks.has(id)));updateProgress();};
+  tile.onclick=()=>{if(stale||state.estado!=='EN_CURSO')return;marks=toggleMark(id,state.carton,state.cantadas,marks,true);tile.classList.toggle('marked',marks.has(id));tile.setAttribute('aria-pressed',String(marks.has(id)));updateProgress();};
   return tile;
 },updateTile(tile,id){
   const called=state.cantadas.includes(id),marked=marks.has(id),hint=state.presentacion?.resaltarCantadas===true;
