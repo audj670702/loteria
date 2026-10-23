@@ -1,6 +1,7 @@
-import {createEffects} from './effects.js?v=inicio-11';
+import {createRecordedVoice} from './recorded-voice.js?v=voz-12';
+import {createEffects} from './effects.js?v=voz-12';
 import {createBoardView} from './board-view.js?v=cierre-9';
-import {createPregonero} from './pregonero.js?v=inicio-11';
+import {createPregonero} from './pregonero.js?v=voz-12';
 import {DEMO_FIGURES,makeCard,shuffle,toggleMark,isSystemFull,normalizeState,imageUrl,isOneAway,formatClaim} from './game.js?v=cierre-9';
 import {CONFIG} from './config.js';
 import {captureSession,clearSession,login,getContext,getState,enterGame,exitGame,getGames,hasSession,presentCard} from './api.js?v=cierre-9';
@@ -9,14 +10,14 @@ let lobbyTimer=null,lobbyRun=0,lobbyGames=[],
 lastPresence=0, ticket='', state=null, marks=new Set(), mode='', deck=[], timer=null, controller=null, generation=0, stale=false, deferredInstall=null;
 let presenting=false,endStamp='',playerUser=null;
 const effects=createEffects({onBlocked:()=>{$('effectsStatus').textContent='Toca Activar efectos para habilitar los sonidos en este dispositivo.';}});
-function unlockAudio(){if(playersAudioAllowed()){effects.unlock();pregonero.unlock();}}
+function unlockAudio(event){if(playersAudioAllowed()){effects.unlock();if(state&&!event?.target?.closest?.('#audioToggle'))pregonero.unlock();}}
 document.addEventListener('pointerdown',unlockAudio,{capture:true});
 document.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')unlockAudio();},{capture:true});
 $('effectsToggle').onclick=()=>{effectsMuted=!effectsMuted;effects.setEnabled(!effectsMuted);$('effectsToggle').textContent=effectsMuted?'Activar efectos':'Silenciar efectos';$('effectsStatus').textContent=effectsMuted?'Efectos silenciados.':'Efectos activados.';syncAudio();};
 let effectsMuted=false;
 function playersAudioAllowed(){return mode==='demo'||state?.presentacion?.audioJugadores!==false;}
-const pregonero=createPregonero({synth:window.speechSynthesis,Utterance:window.SpeechSynthesisUtterance,onChange:view=>{const allowed=playersAudioAllowed();$('audioToggle').disabled=!allowed||!view.supported;$('audioToggle').textContent=!allowed?'Sin audio':view.enabled?'Silenciar pregonero':'Activar audio';$('audioToggle').setAttribute('aria-label',!allowed?'Audio desactivado por el responsable':view.enabled?'Silenciar pregonero':'Activar audio del pregonero');$('audioToggle').setAttribute('aria-pressed',String(view.enabled));$('audioRepeat').disabled=!allowed||!view.canRepeat;$('audioStatus').textContent=allowed?view.status:'Audio desactivado por el responsable. Sigue el canto del panel o el anuncio en vivo.';}});
-$('audioToggle').onclick=()=>{if(playersAudioAllowed()){const turningOff=pregonero.snapshot().enabled;pregonero.toggle();effectsMuted=turningOff;effects.setEnabled(!effectsMuted);$('effectsToggle').textContent=effectsMuted?'Activar efectos':'Silenciar efectos';}};$('audioRepeat').onclick=()=>{if(playersAudioAllowed())pregonero.repeat();};
+const pregonero=createPregonero({recordedVoice:createRecordedVoice(),synth:window.speechSynthesis,Utterance:window.SpeechSynthesisUtterance,onChange:view=>{const allowed=playersAudioAllowed();$('audioToggle').disabled=!allowed||!view.supported;$('audioToggle').textContent=!allowed?'Sin audio':view.blocked?'Reactivar voz':view.enabled?'Silenciar pregonero':'Activar audio';$('audioToggle').setAttribute('aria-label',!allowed?'Audio desactivado por el responsable':view.blocked?'Reactivar voz':view.enabled?'Silenciar pregonero':'Activar audio del pregonero');$('audioToggle').setAttribute('aria-pressed',String(view.enabled));$('audioRepeat').disabled=!allowed||!view.canRepeat;$('audioStatus').textContent=allowed?view.status:'Audio desactivado por el responsable. Sigue el canto del panel o el anuncio en vivo.';}});
+$('audioToggle').onclick=()=>{if(playersAudioAllowed()){const turningOff=pregonero.snapshot().enabled&&!pregonero.snapshot().blocked;if(pregonero.snapshot().blocked)pregonero.reactivate();else pregonero.toggle();effectsMuted=turningOff;effects.setEnabled(!effectsMuted);$('effectsToggle').textContent=effectsMuted?'Activar efectos':'Silenciar efectos';}};$('audioRepeat').onclick=()=>{if(playersAudioAllowed())pregonero.repeat();};
 function syncAudio(){effects.sync(state,{hidden:document.hidden,outdated:stale,allowed:playersAudioAllowed()});$('effectsToggle').disabled=!playersAudioAllowed();if(!playersAudioAllowed()){pregonero.reset();return;}pregonero.sync(state,{hidden:document.hidden,outdated:stale});}
 function message(text='',error=false){$('message').textContent=text;$('message').className='message'+(error?' error':'');}
 function figure(id){return state.figuras.find(f=>f.id===id);}
@@ -78,7 +79,7 @@ function render(){
 function enter(){ document.body.classList.add('in-room');$('lobby').hidden=true;$('welcome').hidden=true;$('room').hidden=false;render();$('room').scrollIntoView({block:'start'}); }
 function stop(){generation++;clearTimeout(timer);controller?.abort();controller=null;}
 function clearRoom(){document.body.classList.remove('playing','in-room');stop();pregonero.reset();effects.reset();endStamp='';presenting=false;ticket='';state=null;marks.clear();deck=[];mode='';stale=false;document.querySelectorAll('dialog[open]').forEach(d=>d.close());boardView.reset();lastFigureStamp='';historyIds=[];$('history').replaceChildren();$('resultNames').replaceChildren();$('room').hidden=true;$('welcome').hidden=false;message();$('demo').focus();}
-$('demo').onclick=()=>{pregonero.reset();effects.reset();endStamp='';stopLobby();$('lobby').hidden=true;stop();ticket='';mode='demo';stale=false;marks=new Set();state={id:'demostracion',estado:'EN_CURSO',figuras:DEMO_FIGURES,carton:makeCard(DEMO_FIGURES),cantadas:[],presentacion:{resaltarCantadas:false,audioJugadores:true,anuncioGanador:'Lotería'}};deck=shuffle(DEMO_FIGURES.map(f=>f.id));setPlayerIdentity({id:'demo',nombre:'Visitante de demostración'},{nombre:'Sin conexión a una empresa'});$('roomMode').textContent='DEMOSTRACIÓN · SIN PREMIOS';$('sync').textContent='Prueba local';$('demoTools').hidden=false;message('Esta demostración no crea partidas ni ganadores reales.');enter();};
+$('demo').onclick=()=>{pregonero.reset();effects.reset();endStamp='';stopLobby();$('lobby').hidden=true;stop();ticket='';mode='demo';stale=false;marks=new Set();state={id:'demostracion',estado:'EN_CURSO',figuras:DEMO_FIGURES,carton:makeCard(DEMO_FIGURES),cantadas:[],presentacion:{resaltarCantadas:false,audioJugadores:true,anuncioGanador:'Lotería'}};deck=shuffle(DEMO_FIGURES.map(f=>f.id));setPlayerIdentity({id:'demo',nombre:'Visitante de demostración'},{nombre:'Sin conexión a una empresa'});$('roomMode').textContent='DEMOSTRACIÓN · SIN PREMIOS';$('sync').textContent='Prueba local';$('demoTools').hidden=false;message('Esta demostración no crea partidas ni ganadores reales.');enter();pregonero.unlock();};
 $('next').onclick=()=>{if(mode!=='demo'||!deck.length)return;state.cantadas.push(deck.shift());render();if(!deck.length)message('Terminó el canto. Puedes presentar tu cartón completo.');};
 function renderResult(){
   const winners=state.ganadores||[];if(state.estado!=='FINALIZADA'||!winners.length)return;
@@ -112,6 +113,7 @@ async function poll(id,runId){
   finally{clearTimeout(timeout);if(runId===generation && (['BORRADOR','EN_CURSO'].includes(state?.estado)||state?.cierre&&Date.now()-new Date(state.cierre.fecha).getTime()<35000))timer=setTimeout(()=>poll(id,runId),1500);}
 }
 async function join(requestedId){
+  pregonero.unlock();
   stopLobby();const id=typeof requestedId==='string'?requestedId:$('gameId').value.trim();if(!id){message('Escribe el identificador que comparte el responsable.',true);return;}
   if(!CONFIG.liveEnabled){message('Las partidas reales aún no están conectadas. Usa «Probar una demostración».',true);return;}
   $('join').disabled=true;const abort=new AbortController();const timeout=setTimeout(()=>abort.abort(),12000);
