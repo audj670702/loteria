@@ -1,6 +1,6 @@
 import { resolveSysTransmission } from "./tv-model.js?v=0.5.35";
 // LOT · basado en el monitor de CPC (cpc-tv.js v0.5.34, sólo referencia); los ajustes de abajo son de LOT.
-// LOT · Monitor TV · v0.5.35
+// LOT · Monitor TV · v0.5.36
 // CH 00: canal de la EO (en CPC, TV Capacitación). Opcional: eoChannel:false lo omite.
 // CH 01–02: señales digitales. CH 03+: catálogo y programación de SYS.
 // Opciones (tvMarkup / initCpcTv): eoChannel (true), staticEffect (false: estática al cambiar de canal).
@@ -65,12 +65,16 @@ function esc(v=""){return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt
 function setStreamState(state,message=''){
   const el=$("#tvLoadIndicator"),label=$("#tvLoadText");
   if(!el||!label)return;
+  const video=$("#tvVideo");
+  // Ignore transient HLS waiting/stalled notifications while frames are still advancing.
+  if((state==='loading'||state==='reconnecting')&&$("#tvMonitor")?.dataset.source==='hls'&&video&&!video.paused&&!video.ended&&video.readyState>=2&&Date.now()-digitalLastFrameAt<2500){state='playing';message=''}
   const busy=state==='loading'||state==='reconnecting';
   el.dataset.state=state;el.hidden=!message;label.textContent=message;
   $("#tvMonitor")?.setAttribute('aria-busy',String(busy));
 }
 let digitalRetryTimer = null, digitalWatchTimer = null;
 let digitalNeedsGesture = false, digitalRetries = 0, digitalGeneration = 0;
+let digitalLastFrameAt=0;
 function stopDigitalRecovery(){
   clearTimeout(digitalRetryTimer);clearInterval(digitalWatchTimer);
   digitalRetryTimer=null;digitalWatchTimer=null;
@@ -104,18 +108,21 @@ function retryDigital(){
 }
 function watchDigital(v){
   let lastTime=v.currentTime, lastProgress=Date.now(), hasPlayed=false;
+  digitalLastFrameAt=0;
+  v.ontimeupdate=()=>{digitalLastFrameAt=Date.now();if(!v.paused&&v.readyState>=2&&$("#tvLoadIndicator")?.dataset.state!=='playing')setStreamState('playing')};
   v.onerror=retryDigital;
   v.onwaiting=()=>{if(!digitalNeedsGesture)setStreamState(hasPlayed?'reconnecting':'loading',hasPlayed?'Recuperando señal…':'Cargando señal…')};
   v.onstalled=v.onwaiting;
   v.onplaying=()=>{
-    hasPlayed=true;lastProgress=Date.now();digitalNeedsGesture=false;
+    hasPlayed=true;lastProgress=Date.now();digitalLastFrameAt=Date.now();digitalNeedsGesture=false;
     clearTimeout(digitalRetryTimer);digitalRetryTimer=null;
     $("#tvResume").hidden=true;v.controls=false;setStreamState('playing');
   };
   digitalWatchTimer=setInterval(()=>{
     if(document.visibilityState!=='visible'||digitalNeedsGesture){lastProgress=Date.now();return}
     if(v.currentTime!==lastTime){
-      lastTime=v.currentTime;lastProgress=Date.now();
+      lastTime=v.currentTime;lastProgress=Date.now();digitalLastFrameAt=lastProgress;
+      if(!v.paused&&v.readyState>=2&&$("#tvLoadIndicator")?.dataset.state!=='playing')setStreamState('playing');
       // A sustained connection earns a fresh recovery budget.
       if(v.currentTime>10)digitalRetries=0;
     }else if(Date.now()-lastProgress>(hasPlayed?45000:60000))retryDigital();
@@ -124,7 +131,7 @@ function watchDigital(v){
 function destroyHls(){
   digitalGeneration++;stopDigitalRecovery();
   const v=$("#tvVideo");
-  if(v){v.onerror=null;v.onplaying=null;v.onwaiting=null;v.onstalled=null;v.controls=false}
+  if(v){v.onerror=null;v.onplaying=null;v.onwaiting=null;v.onstalled=null;v.ontimeupdate=null;v.controls=false}
   if(hls){hls.destroy();hls=null}
   if(v){v.pause();v.removeAttribute("src");v.load()}
 }
