@@ -5,7 +5,7 @@ import {createPregonero} from './pregonero.js?v=voz-12';
 import {DEMO_FIGURES,makeCard,shuffle,toggleMark,isSystemFull,normalizeState,imageUrl,isOneAway,formatClaim} from './game.js?v=cierre-9';
 import {CONFIG} from './config.js';
 import {captureSession,clearSession,login,getContext,getState,enterGame,exitGame,getGames,hasSession,presentCard} from './api.js?v=cierre-9';
-import {tvMarkup,initCpcTv,setTvActive} from './tv.js?v=0.5.35';
+import {tvMarkup,initCpcTv,setTvActive} from './tv.js?v=0.5.36';
 const $=id=>document.getElementById(id);
 // Monitor TV (modelo CPC) en la bienvenida: sin canal de la EO, CH 01 predeterminado y estática al cambiar.
 const TV_OPTIONS={eoChannel:false,staticEffect:true};
