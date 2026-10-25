@@ -24,6 +24,8 @@ function paintSession(user,eo){
   $('menuAdminPanel').hidden=!user||!hasAdminRole(user,eo);
   $('bandLogin').hidden=!!user;
   $('openLobby').hidden=!user;
+  // El titular de la EO (admPrincipal) ya tiene plan: no se le ofrece.
+  $('plansPromo').hidden=!!user&&eo?.esAdmPrincipal===true;
   if(!user){card.hidden=true;$('menuIdentity').hidden=true;$('menuSeparator').hidden=true;$('menuLogout').hidden=true;return;}
   const name=user.nombre||'Jugador',initials=name.trim().split(/\s+/).slice(0,2).map(x=>x[0]).join('').toLocaleUpperCase('es');
   const avatar=$('bandAvatar');
@@ -60,7 +62,9 @@ function art(f){const url=imageUrl(f.imagen);if(!url)return document.createTextN
 function openDialog(id){document.querySelectorAll('dialog[open]').forEach(d=>{if(d.id!==id)d.close();});if(!$(id).open)$(id).showModal();}
 $('showPlans').onclick=()=>openDialog('plansDialog');
 $('menuPlans').onclick=()=>openDialog('plansDialog');
-document.querySelectorAll('.plan-checkout').forEach(btn=>btn.onclick=()=>{$('plansStatus').textContent='Plan '+btn.dataset.plan+': compra pendiente de configurar con su ID oficial de Wix Pricing Plans. No se ha iniciado ningún cobro.';});
+// Cada plan abre su compra en Wix Pricing (scad.mx): la página de planes filtrada a ese plan.
+const PLAN_COMPRA='https://www.scad.mx/pricing-plans/list?planIds=';
+document.querySelectorAll('.plan-checkout').forEach(btn=>btn.onclick=()=>{const url=PLAN_COMPRA+encodeURIComponent(btn.dataset.planId);$('plansStatus').textContent='Abriendo la compra del Plan '+btn.dataset.plan+' en scad.mx…';const w=window.open(url,'_blank','noopener');if(!w)location.href=url;});
 $('gameMenu').onclick=()=>openDialog('gameMenuDialog');$('playerIdentity').onclick=()=>openDialog('identityDialog');
 function setPlayerIdentity(user,eo){playerUser=user;const name=user.nombre||'Jugador';$('userName').textContent=name;$('playerIdentity').setAttribute('aria-label','Ver identidad de '+name);$('identityName').textContent=name;$('eoName').textContent=eo.nombre||'—';const initials=name.trim().split(/\s+/).slice(0,2).map(x=>x[0]).join('').toLocaleUpperCase('es');for(const id of ['playerAvatar','identityAvatar']){const target=$(id);target.textContent=initials;const url=imageUrl(user.avatar);if(url){const img=document.createElement('img');img.src=url;img.alt='';img.onerror=()=>img.remove();target.append(img);}}}
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.closest('dialog').close());
@@ -200,6 +204,6 @@ $('bandLogin').onclick=()=>login('');
 async function loadIdentity(){const abort=new AbortController(),timeout=setTimeout(()=>abort.abort(),12000);try{const context=await getContext(abort.signal);if(context?.usuario)paintSession(context.usuario,context.eo);else paintSession(null);}catch{paintSession(null);}finally{clearTimeout(timeout);}}
 // La bienvenida (con monitor e identidad) es la entrada; al regresar del ingreso SYS se continúa a Mis partidas.
 paintSession(null);
-console.info('SCaD LOTERÍA | v9.11 | Promoción 14 días gratis');
+console.info('SCaD LOTERÍA | v9.12 | Planes con compra en Wix');
 const partida=new URL(location.href).searchParams.get('partida');if(partida){$('gameId').value=partida;if(CONFIG.liveEnabled)join(partida);}else if(CONFIG.liveEnabled&&hasSession()){loadIdentity();}
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
