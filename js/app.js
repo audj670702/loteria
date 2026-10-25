@@ -164,7 +164,6 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden){pregonero.
 window.addEventListener('pageshow',e=>{if(e.persisted&&state&&mode==='live'){stale=true;renderBoard();syncAudio();poll(state.id,generation);}});
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e;$('install').hidden=false;});
 $('install').onclick=async()=>{if(!deferredInstall)return;await deferredInstall.prompt();deferredInstall=null;$('install').hidden=true;};
-const returningFromLogin=new URLSearchParams(location.hash.slice(1)).has('t');
 try{captureSession();}catch(error){message(error.message,true);}
 function stopLobby(){clearTimeout(lobbyTimer);lobbyRun++;}
 function renderLobby(){
@@ -194,6 +193,6 @@ $('bandLogin').onclick=()=>login('');
 async function loadIdentity(){const abort=new AbortController(),timeout=setTimeout(()=>abort.abort(),12000);try{const context=await getContext(abort.signal);if(context?.usuario)paintSession(context.usuario,context.eo);else paintSession(null);}catch{paintSession(null);}finally{clearTimeout(timeout);}}
 // La bienvenida (con monitor e identidad) es la entrada; al regresar del ingreso SYS se continúa a Mis partidas.
 paintSession(null);
-console.info('SCaD LOTERÍA | v9.2 | Inicio de sesión y menú de usuario');
-const partida=new URL(location.href).searchParams.get('partida');if(partida){$('gameId').value=partida;if(CONFIG.liveEnabled)join(partida);}else if(CONFIG.liveEnabled&&hasSession()){if(returningFromLogin)loadLobby();else loadIdentity();}
+console.info('SCaD LOTERÍA | v9.3 | Autenticación conserva bienvenida');
+const partida=new URL(location.href).searchParams.get('partida');if(partida){$('gameId').value=partida;if(CONFIG.liveEnabled)join(partida);}else if(CONFIG.liveEnabled&&hasSession()){loadIdentity();}
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
