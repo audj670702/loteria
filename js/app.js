@@ -58,6 +58,9 @@ function figure(id){return state.figuras.find(f=>f.id===id);}
 function textName(id){const f=figure(id);return f.numero+' · '+f.nombre;}
 function art(f){const url=imageUrl(f.imagen);if(!url)return document.createTextNode(String(f.numero).padStart(2,'0'));const img=document.createElement('img');img.src=url;img.alt='';img.loading='lazy';img.referrerPolicy='no-referrer';img.addEventListener('error',()=>img.replaceWith(document.createTextNode(String(f.numero).padStart(2,'0'))),{once:true});return img;}
 function openDialog(id){document.querySelectorAll('dialog[open]').forEach(d=>{if(d.id!==id)d.close();});if(!$(id).open)$(id).showModal();}
+$('showPlans').onclick=()=>openDialog('plansDialog');
+$('menuPlans').onclick=()=>openDialog('plansDialog');
+document.querySelectorAll('.plan-checkout').forEach(btn=>btn.onclick=()=>{$('plansStatus').textContent='Plan '+btn.dataset.plan+': compra pendiente de configurar con su ID oficial de Wix Pricing Plans. No se ha iniciado ningún cobro.';});
 $('gameMenu').onclick=()=>openDialog('gameMenuDialog');$('playerIdentity').onclick=()=>openDialog('identityDialog');
 function setPlayerIdentity(user,eo){playerUser=user;const name=user.nombre||'Jugador';$('userName').textContent=name;$('playerIdentity').setAttribute('aria-label','Ver identidad de '+name);$('identityName').textContent=name;$('eoName').textContent=eo.nombre||'—';const initials=name.trim().split(/\s+/).slice(0,2).map(x=>x[0]).join('').toLocaleUpperCase('es');for(const id of ['playerAvatar','identityAvatar']){const target=$(id);target.textContent=initials;const url=imageUrl(user.avatar);if(url){const img=document.createElement('img');img.src=url;img.alt='';img.onerror=()=>img.remove();target.append(img);}}}
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.closest('dialog').close());
@@ -197,6 +200,6 @@ $('bandLogin').onclick=()=>login('');
 async function loadIdentity(){const abort=new AbortController(),timeout=setTimeout(()=>abort.abort(),12000);try{const context=await getContext(abort.signal);if(context?.usuario)paintSession(context.usuario,context.eo);else paintSession(null);}catch{paintSession(null);}finally{clearTimeout(timeout);}}
 // La bienvenida (con monitor e identidad) es la entrada; al regresar del ingreso SYS se continúa a Mis partidas.
 paintSession(null);
-console.info('SCaD LOTERÍA | v9.7 | Mis partidas solo con sesión SYS');
+console.info('SCaD LOTERÍA | v9.8 | Oferta pública de planes');
 const partida=new URL(location.href).searchParams.get('partida');if(partida){$('gameId').value=partida;if(CONFIG.liveEnabled)join(partida);}else if(CONFIG.liveEnabled&&hasSession()){loadIdentity();}
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
