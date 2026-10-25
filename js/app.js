@@ -5,7 +5,29 @@ import {createPregonero} from './pregonero.js?v=voz-12';
 import {DEMO_FIGURES,makeCard,shuffle,toggleMark,isSystemFull,normalizeState,imageUrl,isOneAway,formatClaim} from './game.js?v=cierre-9';
 import {CONFIG} from './config.js';
 import {captureSession,clearSession,login,getContext,getState,enterGame,exitGame,getGames,hasSession,presentCard} from './api.js?v=cierre-9';
+import {tvMarkup,initCpcTv,setTvActive} from './tv.js?v=0.5.35';
 const $=id=>document.getElementById(id);
+// Monitor TV (modelo CPC) en la bienvenida: sin canal de la EO, CH 01 predeterminado y estática al cambiar.
+const TV_OPTIONS={eoChannel:false,staticEffect:true};
+$('tvBand').insertAdjacentHTML('beforeend',tvMarkup(TV_OPTIONS));initCpcTv(TV_OPTIONS);
+// Sólo transmite mientras la bienvenida está a la vista; en Mis partidas y en la sala se detiene.
+new MutationObserver(()=>setTvActive(!$('welcome').hidden)).observe($('welcome'),{attributes:true,attributeFilter:['hidden']});
+// Tarjeta de identidad (a la izquierda del monitor) y menú del topbar.
+function paintSession(user,eo){
+  const card=$('identityCard');
+  if(!user){card.hidden=true;$('menuIdentity').hidden=true;$('menuSeparator').hidden=true;$('menuLogout').hidden=true;return;}
+  const name=user.nombre||'Jugador',initials=name.trim().split(/\s+/).slice(0,2).map(x=>x[0]).join('').toLocaleUpperCase('es');
+  const url=imageUrl(user.avatar),avatar=$('bandAvatar');
+  avatar.className='identity-avatar identity-initials';avatar.replaceChildren(initials);
+  if(url){const img=document.createElement('img');img.src=url;img.alt='';img.referrerPolicy='no-referrer';img.className='identity-avatar';img.onerror=()=>{avatar.className='identity-avatar identity-initials';avatar.replaceChildren(initials);};avatar.className='';avatar.replaceChildren(img);}
+  $('bandName').textContent=name;$('bandEo').textContent=eo?.nombre||'';card.hidden=false;
+  $('menuIdentity').textContent=name+(eo?.nombre?' · '+eo.nombre:'');$('menuIdentity').hidden=false;$('menuSeparator').hidden=false;$('menuLogout').hidden=false;
+}
+function setMenu(open){$('appMenu').hidden=!open;$('menuTrigger').setAttribute('aria-expanded',String(open));}
+$('menuTrigger').onclick=e=>{e.stopPropagation();setMenu($('appMenu').hidden);};
+$('appMenu').addEventListener('click',e=>{if(e.target.closest('button,a'))setMenu(false);});
+document.addEventListener('click',e=>{if(!$('appMenu').hidden&&!e.target.closest('.member-control'))setMenu(false);});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')setMenu(false);});
 let lobbyTimer=null,lobbyRun=0,lobbyGames=[],
 lastPresence=0, ticket='', state=null, marks=new Set(), mode='', deck=[], timer=null, controller=null, generation=0, stale=false, deferredInstall=null;
 let presenting=false,endStamp='',playerUser=null;
@@ -27,7 +49,7 @@ function openDialog(id){document.querySelectorAll('dialog[open]').forEach(d=>{if
 $('gameMenu').onclick=()=>openDialog('gameMenuDialog');$('playerIdentity').onclick=()=>openDialog('identityDialog');
 function setPlayerIdentity(user,eo){playerUser=user;const name=user.nombre||'Jugador';$('userName').textContent=name;$('playerIdentity').setAttribute('aria-label','Ver identidad de '+name);$('identityName').textContent=name;$('eoName').textContent=eo.nombre||'—';const initials=name.trim().split(/\s+/).slice(0,2).map(x=>x[0]).join('').toLocaleUpperCase('es');for(const id of ['playerAvatar','identityAvatar']){const target=$(id);target.textContent=initials;const url=imageUrl(user.avatar);if(url){const img=document.createElement('img');img.src=url;img.alt='';img.onerror=()=>img.remove();target.append(img);}}}
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.closest('dialog').close());
-$('how').onclick=()=>openDialog('helpDialog');
+$('how').onclick=()=>openDialog('helpDialog');$('menuHow').onclick=()=>openDialog('helpDialog');
 function updateProgress(){
   const total=state.carton.filter(id=>marks.has(id)).length;
   $('progress').textContent=total+' / 16 marcadas';
@@ -123,7 +145,7 @@ async function join(requestedId){
     const entered=await enterGame(id,abort.signal);
     if(typeof entered.comprobante!=='string'||!entered.comprobante)throw new Error('No se recibió un comprobante del cartón.');
     const incoming=normalizeState(entered);if(incoming.id!==id)throw new Error('La partida recibida no coincide.');
-    stop();pregonero.reset();effects.reset();endStamp='';lastPresence=Date.now();ticket=entered.comprobante;mode='live';state=incoming;stale=false;marks=new Set();setPlayerIdentity(context.usuario,context.eo);$('roomMode').textContent=incoming.nombre||'PARTIDA · '+id;$('sync').textContent='Actualizado';$('demoTools').hidden=true;message(entered.recuperada?'Recuperaste tu mismo cartón. Marca nuevamente las figuras que ya fueron cantadas.':'Inscripción confirmada. Tu cartón está listo.');enter();if(['BORRADOR','EN_CURSO'].includes(state.estado))timer=setTimeout(()=>poll(id,generation),1500);
+    stop();pregonero.reset();effects.reset();endStamp='';lastPresence=Date.now();ticket=entered.comprobante;mode='live';state=incoming;stale=false;marks=new Set();setPlayerIdentity(context.usuario,context.eo);paintSession(context.usuario,context.eo);$('roomMode').textContent=incoming.nombre||'PARTIDA · '+id;$('sync').textContent='Actualizado';$('demoTools').hidden=true;message(entered.recuperada?'Recuperaste tu mismo cartón. Marca nuevamente las figuras que ya fueron cantadas.':'Inscripción confirmada. Tu cartón está listo.');enter();if(['BORRADOR','EN_CURSO'].includes(state.estado))timer=setTimeout(()=>poll(id,generation),1500);
   }catch(error){if(error.auth)login(id);else message(error.message||'No se pudo entrar a la partida.',true);}
   finally{clearTimeout(timeout);$('join').disabled=false;}
 }
@@ -134,6 +156,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden){pregonero.
 window.addEventListener('pageshow',e=>{if(e.persisted&&state&&mode==='live'){stale=true;renderBoard();syncAudio();poll(state.id,generation);}});
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e;$('install').hidden=false;});
 $('install').onclick=async()=>{if(!deferredInstall)return;await deferredInstall.prompt();deferredInstall=null;$('install').hidden=true;};
+const returningFromLogin=new URLSearchParams(location.hash.slice(1)).has('t');
 try{captureSession();}catch(error){message(error.message,true);}
 function stopLobby(){clearTimeout(lobbyTimer);lobbyRun++;}
 function renderLobby(){
@@ -152,11 +175,14 @@ async function loadLobby(quiet=false){
   if(state)return;clearTimeout(lobbyTimer);const run=++lobbyRun;
   const abort=new AbortController(),timeout=setTimeout(()=>abort.abort(),12000);
   $('refreshLobby').disabled=true;
-  try{const data=await getGames(abort.signal);if(run!==lobbyRun||state)return;lobbyGames=data.partidas;history.replaceState(null,'',location.pathname);$('lobbyIdentity').textContent=data.usuario.nombre+' · '+data.eo.nombre;$('welcome').hidden=true;$('lobby').hidden=false;message();renderLobby();}
+  try{const data=await getGames(abort.signal);if(run!==lobbyRun||state)return;lobbyGames=data.partidas;history.replaceState(null,'',location.pathname);$('lobbyIdentity').textContent=data.usuario.nombre+' · '+data.eo.nombre;paintSession(data.usuario,data.eo);$('welcome').hidden=true;$('lobby').hidden=false;message();renderLobby();}
   catch(e){if(run!==lobbyRun)return;if(e.auth&&!quiet)login('');else{$('lobbyStatus').textContent=e.message;message(e.message,true);}}
   finally{clearTimeout(timeout);$('refreshLobby').disabled=false;if(run===lobbyRun&&!state)lobbyTimer=setTimeout(()=>loadLobby(true),15000);}
 }
-$('openLobby').onclick=()=>loadLobby();$('refreshLobby').onclick=()=>loadLobby();$('gameFilter').onchange=renderLobby;
-$('logout').onclick=()=>{stopLobby();clearSession();$('lobby').hidden=true;$('welcome').hidden=false;message('Sesión cerrada.');};
-const partida=new URL(location.href).searchParams.get('partida');if(partida){$('gameId').value=partida;if(CONFIG.liveEnabled)join(partida);}else if(CONFIG.liveEnabled&&hasSession())loadLobby();
+$('openLobby').onclick=()=>loadLobby();$('menuLobby').onclick=()=>loadLobby();$('refreshLobby').onclick=()=>loadLobby();$('gameFilter').onchange=renderLobby;
+function logout(){stopLobby();clearSession();paintSession(null);$('lobby').hidden=true;$('welcome').hidden=false;message('Sesión cerrada.');}
+$('logout').onclick=logout;$('menuLogout').onclick=logout;
+async function loadIdentity(){const abort=new AbortController(),timeout=setTimeout(()=>abort.abort(),12000);try{const context=await getContext(abort.signal);if(context?.usuario)paintSession(context.usuario,context.eo);}catch{paintSession(null);}finally{clearTimeout(timeout);}}
+// La bienvenida (con monitor e identidad) es la entrada; al regresar del ingreso SYS se continúa a Mis partidas.
+const partida=new URL(location.href).searchParams.get('partida');if(partida){$('gameId').value=partida;if(CONFIG.liveEnabled)join(partida);}else if(CONFIG.liveEnabled&&hasSession()){if(returningFromLogin)loadLobby();else loadIdentity();}
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});

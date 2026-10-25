@@ -21,3 +21,28 @@ body.in-room{overflow:hidden}.in-room .topbar,.in-room footer{display:none}.in-r
 .game-shell .near-notice{color:#a51b24;font-weight:800;background:#fff0e9;border-radius:4px;padding:1px 7px;z-index:3}
 .winner-person{display:flex;align-items:center;gap:14px;margin:16px 0}.winner-person .player-avatar{width:64px;height:64px;flex-basis:64px;font-size:24px}.winner-person strong{font-size:22px;overflow-wrap:anywhere}
 @media(prefers-reduced-motion:reduce){.game-shell .board-panel.one-away{animation:none;border-color:#cf3035;box-shadow:inset 0 0 0 3px #d82c2c88,inset 0 0 18px #ed333355}}
+
+/* v0.9.0 · Franja superior como en CPC: identidad a la izquierda y monitor TV a la derecha (tv.css). */
+.top-band-left{display:flex;flex-direction:column;justify-content:space-between;gap:10px;min-height:100%}
+.tv-home{margin:0 0 6px}
+.identity-card{display:flex;flex-direction:column;align-items:flex-start;gap:8px;min-width:0;padding:4px 2px}
+.identity-avatar{width:64px;height:64px;border-radius:50%;object-fit:cover;display:grid;place-items:center;background:#e4e9d8;border:2px solid #fff;box-shadow:0 3px 10px #233e3526;overflow:hidden}
+.identity-initials{color:var(--green);font-weight:700;font-size:1.1rem;letter-spacing:.02em}
+.identity-copy{min-width:0;width:100%;display:grid;gap:3px}
+.identity-name{color:var(--ink);font-size:.95rem;font-weight:700;line-height:1.2;overflow-wrap:anywhere}
+.identity-email{color:var(--muted);font-size:.72rem;overflow-wrap:anywhere}
+.tv-install-btn{position:absolute;left:0;bottom:6px;min-height:30px;padding:0 12px;border:0;border-radius:8px;background:var(--green);color:#fff;font-size:.72rem;font-weight:700;box-shadow:0 4px 12px #214d413d}
+/* Menú hamburguesa del topbar (modelo CPC, paleta LOT). */
+.member-control{position:relative}
+.menu-trigger{width:42px;height:42px;padding:0;display:grid;place-items:center;border:1px solid var(--line);border-radius:12px;background:#fff}
+.menu-icon{display:grid;gap:4px}.menu-icon span{display:block;width:18px;height:2px;border-radius:2px;background:var(--ink)}
+.member-menu{position:absolute;right:0;top:calc(100% + 7px);z-index:30;width:230px;padding:10px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 30px #102a2329}
+.member-email{display:block;padding:2px 3px 9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:.72rem}
+.member-menu-link,.logout-btn{display:block;width:100%;padding:9px 10px;border:0;border-radius:8px;background:transparent;color:var(--ink);text-align:left;text-decoration:none;font-size:.82rem;font-weight:600}
+.member-menu-link:hover,.member-menu-link:focus-visible,.logout-btn:hover,.logout-btn:focus-visible{background:#f2f0e6}
+.member-menu-separator{height:1px;margin:5px 4px;background:var(--line)}
+.logout-btn{color:#843b27}
+body.in-room .out-of-room{display:none!important}
+/* Los botones globales de LOT no deben alterar los controles del monitor. */
+.tv-options-close,.tv-fs-close{padding:0}
+@media(max-width:780px){.identity-avatar{width:54px;height:54px}.identity-name{font-size:.82rem}.tv-home{margin-bottom:4px}}
