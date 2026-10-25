@@ -1,12 +1,23 @@
 # LOTERÍA · SCaD
 
-Sala de participantes, modalidad tradicional de cartón lleno 4 × 4. Versión 0.3.0: Mis partidas e inscripción desde la app.
+Sala de participantes, modalidad tradicional de cartón lleno 4 × 4. Versión 0.9.0: monitor TV en la bienvenida.
 
 ## Estado
 
 La demostración funciona sin Wix: genera un cartón aleatorio de 16 figuras, simula un canto sin repeticiones, permite marcar únicamente figuras cantadas y presenta el cartón al completar las 16. No registra ganadores ni asigna premios. Las 54 ilustraciones tradicionales se sirven desde Media Wix, sin duplicarlas en GitHub; número y nombre permanecen como texto.
 
 La conexión a Wix usa SYS LOT, ingreso antes del inicio y comprobantes firmados. El responsable conserva la validación presencial. Consulta [el contrato de integración](docs/INTEGRACION.md).
+
+## Monitor TV
+
+La bienvenida es la pantalla de entrada. En la franja superior lleva la tarjeta de identidad del usuario a la izquierda y el monitor TV a la derecha, como en CPC. `js/tv.js`, `js/tv-model.js` y `tv.css` son copia del modelo de CPC (`cpc-tv.js` v0.5.35): hay que mantenerlos iguales.
+
+- No hay canal de la EO (CH 00). CH 01 y CH 02 son las salidas de TV Digital (HLS), y CH 01 es el predeterminado.
+- CH 03 en adelante son canales virtuales según el catálogo y la programación del panel TV Digital (`tvdCanales` y `tvdTransmision`).
+- Al cambiar de canal aparece la estática del monitor del panel TV Digital.
+- El monitor sólo transmite mientras la bienvenida está a la vista.
+
+Con sesión, la app abre en la bienvenida. Al volver del ingreso SYS continúa a Mis partidas. El menú del topbar reúne Mis partidas, Cómo jugar, SCaD HUB y Cerrar sesión.
 
 ## Ejecutar
 
