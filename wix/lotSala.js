@@ -6,6 +6,9 @@ import { response } from 'wix-http-functions';
 import { getSecret } from 'wix-secrets-backend';
 import { nexusAuth } from 'backend/nexusAuth';
 import { restoreCard, verifyCard } from 'backend/lotCards';
+import { comercial } from 'backend/sysComercial';
+import { CFG_COMERCIAL } from 'backend/lotPlan';
+const C=comercial(CFG_COMERCIAL);
 const O={suppressAuth:true,consistentRead:true};
 const ORIGIN='https://loteria.scad.mx';
 const id=v=>typeof v==='string'?v:v?._id||'';
@@ -21,12 +24,15 @@ async function identity(request){
   const users=await wixData.query('SCaD_USR').eq('app','LOT').eq('activo',true).eq('memberId',auth.memberId).eq('enteOperador',auth.eo).limit(2).find(O);
   const eos=await wixData.query('SCaD_EO').eq('app','LOT').eq('activo',true).eq('codigoContexto',auth.eo).limit(2).find(O);
   check(users.items.length===1&&eos.items.length===1,'No tienes un acceso LOT activo para este ente.');
+  // EO comercial sin plan vigente del titular: suspendida para todos sus usuarios (caché de 10 min en SYS).
+  check(await C.vigenciaEO(eos.items[0]),'La suscripción de LOTERÍA de tu ente no está vigente. Pide al responsable que la renueve.');
   return {user:users.items[0],eo:eos.items[0]};
 }
 async function gameFor(key,ctx){
   check(typeof key==='string'&&/^[a-zA-Z0-9-]{16,64}$/.test(key),'Identificador de partida inválido.',400);
   const game=await wixData.get('LOT_Partidas',key,O);
   check(game&&id(game.enteOperador)===ctx.eo._id,'La partida no está disponible para tu ente.');
+  check(!game.fechaCompactacion,'La partida terminó. Consulta el resultado con el responsable.',410);
   check(game.reglas?.modalidad==='CARTON_LLENO'&&game.reglas.filas===4&&game.reglas.columnas===4,'Modalidad no disponible.');
   return game;
 }
@@ -36,7 +42,7 @@ async function snapshot(game,carton){
   const figuras=game.reglas.figuras.map(k=>{const f=byId.get(k);check(f,'La baraja de esta partida no está completa.',409);return {id:f._id,numero:f.numero,nombre:f.nombre,imagen:f.imagen||null};});
   const resolved=await resolveDigitalResult(game);game=resolved.game;
   const view=vistaPartida(game);
-  return {ganadores:resolved.winners.map(w=>({usuario:id(w.usuario),nombre:w.cartonGanador?.nombre||'Jugador',avatar:w.cartonGanador?.avatar||'',fecha:w.fechaValidacion})),cierre:game.reglas.cierre||null,id:game._id,estado:game.estado,nombre:game.reglas.nombre&&!game.reglas.nombre.startsWith('LOT-')?game.reglas.nombre:'Partida de lotería',premio:game.reglas.premio||'',presentacion:{resaltarCantadas:game.reglas.presentacion?.resaltarCantadas===true,audioJugadores:game.reglas.presentacion?.audioJugadores!==false,anuncioGanador:game.reglas.presentacion?.anuncioGanador||'Lotería'},canto:view._canto,figuras,carton,cantadas:view.figurasCantadas};
+  return {ganadores:resolved.winners.map(w=>({usuario:id(w.usuario),nombre:w.cartonGanador?.nombre||w.jugador||'Jugador',avatar:w.cartonGanador?.avatar||'',fecha:w.fechaValidacion})),cierre:game.reglas.cierre||null,id:game._id,estado:game.estado,nombre:game.reglas.nombre&&!game.reglas.nombre.startsWith('LOT-')?game.reglas.nombre:'Partida de lotería',premio:game.reglas.premio||'',presentacion:{resaltarCantadas:game.reglas.presentacion?.resaltarCantadas===true,audioJugadores:game.reglas.presentacion?.audioJugadores!==false,anuncioGanador:game.reglas.presentacion?.anuncioGanador||'Lotería'},canto:view._canto,figuras,carton,cantadas:view.figurasCantadas};
 }
 function failure(e){console.error('LOT_SALA',e.status||500);return json(e.status||500,{ok:false,mensaje:e.status?e.message:'No se pudo completar la operación. Intenta de nuevo.',codigo:e.code});}
 export function lotOptions(request){try{origin(request);return response({status:204,headers});}catch(e){return failure(e);}}
@@ -82,12 +88,13 @@ export async function lotGames(request){try{
 }catch(e){return failure(e);}}
 
 // La primera inserción con ID único congela el canto. No almacena cartones de no ganadores.
+// El cartón ganador se quita al resumir la partida (backend/lotRetencion); queda jugador, fecha y premio.
 const closeKey=game=>game._id+'-cierre-digital';
 async function closingWinner(game){const r=await wixData.query('LOT_Ganadores').eq('_id',closeKey(game)).limit(1).find(O);return r.items[0];}
 function applyDigitalClose(game,winner){const close=winner.cartonGanador.cierre;return {...game,estado:'FINALIZADA',fin:new Date(close.fecha),figurasCantadas:[...close.cantadas],reglas:{...game.reglas,ingresoAbierto:false,cierre:{motivo:'GANADOR_DIGITAL',fecha:close.fecha,turno:close.cantadas.length},canto:{...game.reglas.canto,pausado:true,desde:null}}};}
 export async function resolveDigitalResult(game){
-  const first=await closingWinner(game);
-  if(first){const needs=game.estado!=='FINALIZADA'||game.reglas.cierre?.motivo!=='GANADOR_DIGITAL'||JSON.stringify(game.figurasCantadas)!==JSON.stringify(first.cartonGanador.cierre.cantadas);game=applyDigitalClose(game,first);if(needs)game=await wixData.update('LOT_Partidas',game,{suppressAuth:true});}
+  const first=game.fechaCompactacion?null:await closingWinner(game);
+  if(first?.cartonGanador?.cierre){const needs=game.estado!=='FINALIZADA'||game.reglas.cierre?.motivo!=='GANADOR_DIGITAL'||JSON.stringify(game.figurasCantadas)!==JSON.stringify(first.cartonGanador.cierre.cantadas);game=applyDigitalClose(game,first);if(needs)game=await wixData.update('LOT_Partidas',game,{suppressAuth:true});}
   const r=await wixData.query('LOT_Ganadores').eq('partida',game._id).limit(1000).find(O);let page=r;const winners=[...r.items];while(page.hasNext()){page=await page.next();winners.push(...page.items);}
   return {game,winners};
 }
@@ -101,7 +108,7 @@ export async function registerDigitalWinner(game,user,card){
   let called=first?.cartonGanador.cierre.cantadas||cantadas(game);
   check(card.every(k=>called.includes(k)),'El sistema aún no reconoce las 16 figuras cantadas de tu cartón.',409);
   const now=Date.now();
-  const values={folio:'GAN-DIGITAL',partida:game._id,usuario:user._id,figuraGanadora:'CARTON_LLENO',fechaValidacion:new Date(now),premio:game.reglas.premio||'',cartonGanador:{filas:4,columnas:4,figuras:[...card],posicionesGanadoras:Array.from({length:16},(_,i)=>i),validacion:'SISTEMA',presentacion:'DIGITAL',nombre:user.nombreVisible||user.nombreCompleto||user.nombre||user.codigoUSR,avatar:user.avatar||''}};
+  const values={folio:'GAN-DIGITAL',partida:game._id,usuario:user._id,figuraGanadora:'CARTON_LLENO',fechaValidacion:new Date(now),premio:game.reglas.premio||'',jugador:user.nombreVisible||user.nombreCompleto||user.nombre||user.codigoUSR,cartonGanador:{filas:4,columnas:4,figuras:[...card],posicionesGanadoras:Array.from({length:16},(_,i)=>i),validacion:'SISTEMA',presentacion:'DIGITAL',nombre:user.nombreVisible||user.nombreCompleto||user.nombre||user.codigoUSR,avatar:user.avatar||''}};
   if(!first){
     // La clave única evita que dos peticiones simultáneas elijan cortes diferentes.
     const closing={...values,_id:closeKey(game),cartonGanador:{...values.cartonGanador,cierre:{fecha:new Date(now).toISOString(),cantadas:[...called],turnoGanador:completionTurn(card,called)}}};
