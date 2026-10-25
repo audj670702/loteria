@@ -64,3 +64,17 @@ body{background:linear-gradient(145deg,#edf5ff 0%,#fff8ec 100%);color:var(--ink)
 .plan-card p{flex:1;margin:0;font-size:13px;line-height:1.5}
 .plan-card button{font-size:13px;padding:10px}
 @media(max-width:650px){.plans-grid{grid-template-columns:1fr;gap:10px}.plan-card{display:grid;grid-template-columns:94px 1fr;align-items:center}.plan-card img{grid-row:span 3;width:94px;aspect-ratio:1}.plan-card button{grid-column:2}.plans-dialog{padding:16px}}
+
+/* LOTERÍA v9.10 · Banner promocional collage */
+#welcome .plans-promo{position:relative;isolation:isolate;overflow:hidden;display:flex;align-items:center;min-height:176px;margin-top:18px;border-radius:18px;background:linear-gradient(112deg,#063a73 0%,#075fa7 58%,#087fc5 100%);color:#fff;box-shadow:0 10px 24px #064c8430}
+#welcome .plans-promo-art{position:relative;flex:0 0 35%;height:180px;overflow:hidden}
+#welcome .plans-promo-art img{position:absolute;width:112px;height:135px;object-fit:cover;border-radius:11px;border:3px solid #fff8;box-shadow:0 7px 20px #001c4970;top:21px;left:20%;transform:rotate(-18deg)}
+#welcome .plans-promo-art img:nth-child(2){left:35%;top:12px;transform:rotate(2deg);z-index:2}
+#welcome .plans-promo-art img:nth-child(3){left:51%;transform:rotate(18deg)}
+#welcome .plans-promo-copy{position:relative;z-index:3;padding:18px 18px 18px 0}
+#welcome .plans-promo-kicker{font-size:10px;letter-spacing:.15em;color:#ffe29d;font-weight:700}
+#welcome .plans-promo h2{font:700 clamp(19px,3vw,27px)/1.18 'DM Sans',system-ui,sans-serif;margin:7px 0}
+#welcome .plans-promo p{font-size:13px;line-height:1.4;margin:0 0 12px;color:#e5f4ff}
+#welcome .plans-promo-cta{background:#ffc849;color:#06376a;border:0;font-size:13px;font-weight:700;padding:11px 16px;border-radius:9px;box-shadow:0 4px 10px #001e3c35}
+#welcome .plans-promo-cta span{margin-left:12px}
+@media(max-width:600px){#welcome .plans-promo{min-height:160px}#welcome .plans-promo-art{flex-basis:36%;height:160px}#welcome .plans-promo-art img{width:77px;height:104px;top:32px;left:4%}#welcome .plans-promo-art img:nth-child(2){left:19%;top:20px}#welcome .plans-promo-art img:nth-child(3){left:34%}#welcome .plans-promo-copy{padding:13px 12px 13px 0}#welcome .plans-promo h2{font-size:19px}#welcome .plans-promo p{font-size:11px}#welcome .plans-promo-cta{font-size:12px;padding:10px 12px}}
