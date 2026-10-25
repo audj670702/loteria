@@ -156,7 +156,7 @@ export const lotOperacion = webMethod(Permissions.SiteMember, async (request) =>
     if (accion === 'seguimiento') {
       const resolved=await resolveDigitalResult(await owned('LOT_Partidas',datos.partida,ctx));const game=resolved.game;
       const participants=await listaPresencias(game,ctx.eo);
-      for(const w of resolved.winners){if(!participants.some(p=>p.usuario===id(w.usuario)))participants.push({usuario:id(w.usuario),nombre:w.cartonGanador?.nombre||w.jugador||'Jugador',conectado:false});}
+      for(const w of resolved.winners){if(!participants.some(p=>p.usuario===id(w.usuario)))participants.push({usuario:id(w.usuario),nombre:w.cartonGanador?.nombre||w.jugador||'Jugador',fechaInscripcion:null,ultimaActividad:null,conectado:false});}
       const users=await all(wixData.query('SCaD_USR').eq('app','LOT').eq('enteOperador',ctx.eo.codigoContexto));
       return {ok:true,data:{partida:vistaPartida(game),participantes:participants.map(p=>{const u=users.find(u=>u._id===p.usuario);const w=resolved.winners.find(w=>id(w.usuario)===p.usuario);return {...p,nombre:u?.nombreVisible||u?.nombreCompleto||p.nombre,avatar:u?.avatar||w?.cartonGanador?.avatar||'',ganador:!!w,fechaValidacion:w?.fechaValidacion||null,premio:w?.premio||''};})}};
     }

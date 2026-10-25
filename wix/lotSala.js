@@ -14,7 +14,7 @@ const ORIGIN='https://loteria.scad.mx';
 const id=v=>typeof v==='string'?v:v?._id||'';
 const headers={'Content-Type':'application/json','Access-Control-Allow-Origin':ORIGIN,'Access-Control-Allow-Methods':'GET, POST, OPTIONS','Access-Control-Allow-Headers':'Authorization, Content-Type, X-LOT-Carton','Cache-Control':'no-store','Vary':'Origin'};
 function json(status,body){return response({status,headers,body:JSON.stringify(body)});}
-function check(condition,message,status=403){if(!condition){const e=new Error(message);e.status=status;throw e;}}
+function check(condition,message,status=403){if(!condition){const e=/** @type {any} */(new Error(message));e.status=status;throw e;}}
 async function secret(){const s=await getSecret('NEXUS_TOKEN_SECRET');check(typeof s==='string'&&s.length>=32,'Configuración de firma no disponible.',500);return s;}
 function origin(request){const o=request?.headers?.origin||request?.headers?.Origin;check(!o||o===ORIGIN,'Origen no permitido.');}
 async function identity(request){
