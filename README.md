@@ -34,4 +34,6 @@ Código estático publicado en GitHub Pages con dominio loteria.scad.mx y HTTPS.
 
 La separación de barajas institucionales compartidas y catálogos propios se describe en [CATALOGOS.md](docs/CATALOGOS.md).
 
+Planes comerciales BÁSICO, ESTÁNDAR y PRO (Wix Pricing Plans), registro de empresa por autoservicio y suspensión sin plan vigente: [PLANES-2026-10-25.md](docs/PLANES-2026-10-25.md). Usa el módulo comercial de SYS (repo `scad-sys`).
+
 La app del jugador descubre las partidas de su EO desde Mis partidas. El PCP muestra inscritos y conexión por separado; no es necesario compartir un enlace. Los inscritos pueden volver a su mismo cartón durante la partida. Las marcas no se almacenan.

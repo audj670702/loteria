@@ -6,6 +6,9 @@ import { response } from 'wix-http-functions';
 import { getSecret } from 'wix-secrets-backend';
 import { nexusAuth } from 'backend/nexusAuth';
 import { restoreCard, verifyCard } from 'backend/lotCards';
+import { comercial } from 'backend/sysComercial';
+import { CFG_COMERCIAL } from 'backend/lotPlan';
+const C=comercial(CFG_COMERCIAL);
 const O={suppressAuth:true,consistentRead:true};
 const ORIGIN='https://loteria.scad.mx';
 const id=v=>typeof v==='string'?v:v?._id||'';
@@ -21,6 +24,8 @@ async function identity(request){
   const users=await wixData.query('SCaD_USR').eq('app','LOT').eq('activo',true).eq('memberId',auth.memberId).eq('enteOperador',auth.eo).limit(2).find(O);
   const eos=await wixData.query('SCaD_EO').eq('app','LOT').eq('activo',true).eq('codigoContexto',auth.eo).limit(2).find(O);
   check(users.items.length===1&&eos.items.length===1,'No tienes un acceso LOT activo para este ente.');
+  // EO comercial sin plan vigente del titular: suspendida para todos sus usuarios (caché de 10 min en SYS).
+  check(await C.vigenciaEO(eos.items[0]),'La suscripción de LOTERÍA de tu ente no está vigente. Pide al responsable que la renueve.');
   return {user:users.items[0],eo:eos.items[0]};
 }
 async function gameFor(key,ctx){
