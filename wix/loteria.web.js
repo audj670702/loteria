@@ -2,6 +2,7 @@
 // Solo ADM puede operar. Usuarios y entes sólo se crean en el registro por
 // autoservicio de backend/sysComercial (titular con plan vigente y sin EO).
 // v2.1: planes BÁSICO/ESTÁNDAR/PRO (backend/lotPlan) y EO suspendida sin plan vigente.
+// v2.2: retención (backend/lotRetencion). Ganadores sin cartón; baraja editable sin partidas activas.
 import wixData from 'wix-data';
 import crypto from 'crypto';
 import { configPartida, ingresoAbierto, cantadas, vistaPartida, pausa } from 'backend/lotFlow';
@@ -85,7 +86,7 @@ export const lotOperacion = webMethod(Permissions.SiteMember, async (request) =>
     }
     const ctx = resolved.selected;
     check(ctx,'Selecciona un ente LOT activo para el que tengas permiso ADM.');
-    check(ctx.vigente,'La suscripción de LOTERÍA de tu empresa no está vigente. Renueva tu plan para continuar; tus datos se conservan.');
+    check(ctx.vigente,'La suscripción de LOTERÍA de tu empresa no está vigente. Renueva tu plan para continuar; tus datos se conservan 30 días después del fin del plan.');
     if (accion === 'usuarios') {
       const users = await all(wixData.query('SCaD_USR').eq('app','LOT').eq('activo',true).eq('enteOperador',ctx.eo.codigoContexto));
       return {ok:true,data:users.map(u=>({_id:u._id,nombre:u.nombreVisible || u.nombreCompleto || u.nombre || u.codigoUSR}))};
@@ -114,8 +115,9 @@ export const lotOperacion = webMethod(Permissions.SiteMember, async (request) =>
       const cat = await catalog(datos.catalogo,ctx);
       check(canEditCatalog(cat,ctx.eo._id),'La baraja predeterminada es de solo lectura. Crea un catalogo personalizado para tus figuras.');
       await checkCatalogEnabled(cat,ctx,(await plan(ctx)).nivel);
-      const used = await wixData.query('LOT_Partidas').eq('catalogo',cat._id).limit(1).find(O);
-      check(!used.items.length,'La baraja ya tiene partidas; crea otro catalogo para modificar sus figuras.');
+      // Bloquea mientras una partida la use: en preparación, en curso o cerrada aún sin resumir.
+      const used = (await all(wixData.query('LOT_Partidas').eq('catalogo',cat._id))).filter(g=>!g.fechaCompactacion);
+      check(!used.length,'La baraja está en uso por una partida activa o recién cerrada. Edítala cuando la partida termine.');
       check(Number.isSafeInteger(datos.numero) && datos.numero > 0,'Numero de figura invalido.');
       check(text(datos.nombre),'Escribe el nombre de la figura.');
       const key = cat._id + '-' + datos.numero;
@@ -154,9 +156,9 @@ export const lotOperacion = webMethod(Permissions.SiteMember, async (request) =>
     if (accion === 'seguimiento') {
       const resolved=await resolveDigitalResult(await owned('LOT_Partidas',datos.partida,ctx));const game=resolved.game;
       const participants=await listaPresencias(game,ctx.eo);
-      for(const w of resolved.winners){if(!participants.some(p=>p.usuario===id(w.usuario)))participants.push({usuario:id(w.usuario),nombre:w.cartonGanador?.nombre||'Jugador',conectado:false});}
+      for(const w of resolved.winners){if(!participants.some(p=>p.usuario===id(w.usuario)))participants.push({usuario:id(w.usuario),nombre:w.cartonGanador?.nombre||w.jugador||'Jugador',conectado:false});}
       const users=await all(wixData.query('SCaD_USR').eq('app','LOT').eq('enteOperador',ctx.eo.codigoContexto));
-      return {ok:true,data:{partida:vistaPartida(game),participantes:participants.map(p=>{const u=users.find(u=>u._id===p.usuario);const w=resolved.winners.find(w=>id(w.usuario)===p.usuario);return {...p,nombre:u?.nombreVisible||u?.nombreCompleto||p.nombre,avatar:u?.avatar||w?.cartonGanador?.avatar||'',ganador:!!w,fechaValidacion:w?.fechaValidacion||null,cartonGanador:w?.cartonGanador?.figuras||null};})}};
+      return {ok:true,data:{partida:vistaPartida(game),participantes:participants.map(p=>{const u=users.find(u=>u._id===p.usuario);const w=resolved.winners.find(w=>id(w.usuario)===p.usuario);return {...p,nombre:u?.nombreVisible||u?.nombreCompleto||p.nombre,avatar:u?.avatar||w?.cartonGanador?.avatar||'',ganador:!!w,fechaValidacion:w?.fechaValidacion||null,premio:w?.premio||''};})}};
     }
     if (accion === 'ganadores') {
       const game = await owned('LOT_Partidas',datos.partida,ctx);

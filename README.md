@@ -36,4 +36,6 @@ La separación de barajas institucionales compartidas y catálogos propios se de
 
 Planes comerciales BÁSICO, ESTÁNDAR y PRO (Wix Pricing Plans), registro de empresa por autoservicio y suspensión sin plan vigente: [PLANES-2026-10-25.md](docs/PLANES-2026-10-25.md). Usa el módulo comercial de SYS (repo `scad-sys`).
 
+Retención de datos: resumen de partidas cerradas (ganadores sin cartón), historial de 1 año y borrado a los 30 días sin plan: [RETENCION-2026-10-25.md](docs/RETENCION-2026-10-25.md).
+
 La app del jugador descubre las partidas de su EO desde Mis partidas. El PCP muestra inscritos y conexión por separado; no es necesario compartir un enlace. Los inscritos pueden volver a su mismo cartón durante la partida. Las marcas no se almacenan.
