@@ -12,9 +12,16 @@ const TV_OPTIONS={eoChannel:false,staticEffect:true};
 $('tvBand').insertAdjacentHTML('beforeend',tvMarkup(TV_OPTIONS));initCpcTv(TV_OPTIONS);
 // Sólo transmite mientras la bienvenida está a la vista; en Mis partidas y en la sala se detiene.
 new MutationObserver(()=>setTvActive(!$('welcome').hidden)).observe($('welcome'),{attributes:true,attributeFilter:['hidden']});
+// El enlace administrativo se habilita sólo con el rol devuelto por SYS.
+function hasAdminRole(user,eo){
+  const roles=[user?.rol,user?.role,user?.roles,user?.rolEO,user?.rolesEO,user?.perfil,user?.perfiles,eo?.rol,eo?.role,eo?.roles,eo?.rolUsuario,eo?.rolEnEO,eo?.esAdmPrincipal===true?'admPrincipal':null,user?.esAdmPrincipal===true?'admPrincipal':null];
+  const flatten=value=>Array.isArray(value)?value.flatMap(flatten):typeof value==='string'?value.split(/[,;|]/):[];
+  return roles.flatMap(flatten).some(role=>['ADM','ADMPRINCIPAL'].includes(role.trim().replace(/[\\s_-]/g,'').toUpperCase()));
+}
 // Tarjeta de identidad (a la izquierda del monitor) y menú del topbar.
 function paintSession(user,eo){
   const card=$('identityCard');
+  $('menuAdminPanel').hidden=!user||!hasAdminRole(user,eo);
   if(!user){card.hidden=true;$('menuIdentity').hidden=true;$('menuSeparator').hidden=true;$('menuLogout').hidden=true;return;}
   const name=user.nombre||'Jugador',initials=name.trim().split(/\s+/).slice(0,2).map(x=>x[0]).join('').toLocaleUpperCase('es');
   const url=imageUrl(user.avatar),avatar=$('bandAvatar');
