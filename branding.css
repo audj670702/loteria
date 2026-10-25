@@ -97,3 +97,9 @@ body{background:linear-gradient(145deg,#edf5ff 0%,#fff8ec 100%);color:var(--ink)
 #brandSplash .splash-powered{padding:12px 18px;background:#fff;border-radius:16px;box-shadow:0 12px 28px #001c4338;color:#253956;flex-wrap:wrap;max-width:calc(100vw - 32px);box-sizing:border-box}
 #brandSplash .splash-hub{color:#133a70;font-weight:700}
 @media(prefers-reduced-motion:reduce){#brandSplash .splash-logo-card{transition:none}}
+
+/* LOTERÍA v9.13 · Modal sin encabezados; botón de compra destacado */
+.plans-dialog .plans-grid{margin-top:26px}
+.plans-dialog .plan-checkout{border:0;border-radius:11px;padding:13px 12px;font-size:14px;font-weight:800;color:#3a1d00;background:linear-gradient(180deg,#ffd23f 0%,#ff9f1c 100%);box-shadow:0 6px 16px #ff8a0055;cursor:pointer;transition:transform .15s ease,box-shadow .15s ease}
+.plans-dialog .plan-checkout:hover,.plans-dialog .plan-checkout:focus-visible{transform:translateY(-1px);box-shadow:0 9px 22px #ff8a0077;background:linear-gradient(180deg,#ffdc5e 0%,#ff9100 100%)}
+.plans-dialog .plan-checkout:active{transform:translateY(0)}

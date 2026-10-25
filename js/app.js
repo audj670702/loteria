@@ -204,6 +204,6 @@ $('bandLogin').onclick=()=>login('');
 async function loadIdentity(){const abort=new AbortController(),timeout=setTimeout(()=>abort.abort(),12000);try{const context=await getContext(abort.signal);if(context?.usuario)paintSession(context.usuario,context.eo);else paintSession(null);}catch{paintSession(null);}finally{clearTimeout(timeout);}}
 // La bienvenida (con monitor e identidad) es la entrada; al regresar del ingreso SYS se continúa a Mis partidas.
 paintSession(null);
-console.info('SCaD LOTERÍA | v9.12 | Planes con compra en Wix');
+console.info('SCaD LOTERÍA | v9.13 | Planes con compra en Wix');
 const partida=new URL(location.href).searchParams.get('partida');if(partida){$('gameId').value=partida;if(CONFIG.liveEnabled)join(partida);}else if(CONFIG.liveEnabled&&hasSession()){loadIdentity();}
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
