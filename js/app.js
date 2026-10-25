@@ -4,6 +4,7 @@ import {createBoardView} from './board-view.js?v=cierre-9';
 import {createPregonero} from './pregonero.js?v=voz-12';
 import {DEMO_FIGURES,makeCard,shuffle,toggleMark,isSystemFull,normalizeState,imageUrl,isOneAway,formatClaim} from './game.js?v=cierre-9';
 import {CONFIG} from './config.js';
+import {renderCollage,renderPlanes} from './plans.js?v=9.12';
 import {captureSession,clearSession,login,getContext,getState,enterGame,exitGame,getGames,hasSession,presentCard} from './api.js?v=cierre-9';
 import {tvMarkup,initCpcTv,setTvActive} from './tv.js?v=0.5.36';
 const $=id=>document.getElementById(id);
@@ -24,6 +25,7 @@ function paintSession(user,eo){
   $('menuAdminPanel').hidden=!user||!hasAdminRole(user,eo);
   $('bandLogin').hidden=!!user;
   $('openLobby').hidden=!user;
+  $('plansPromo').hidden=!!user;
   if(!user){card.hidden=true;$('menuIdentity').hidden=true;$('menuSeparator').hidden=true;$('menuLogout').hidden=true;return;}
   const name=user.nombre||'Jugador',initials=name.trim().split(/\s+/).slice(0,2).map(x=>x[0]).join('').toLocaleUpperCase('es');
   const avatar=$('bandAvatar');
@@ -58,9 +60,12 @@ function figure(id){return state.figuras.find(f=>f.id===id);}
 function textName(id){const f=figure(id);return f.numero+' · '+f.nombre;}
 function art(f){const url=imageUrl(f.imagen);if(!url)return document.createTextNode(String(f.numero).padStart(2,'0'));const img=document.createElement('img');img.src=url;img.alt='';img.loading='lazy';img.referrerPolicy='no-referrer';img.addEventListener('error',()=>img.replaceWith(document.createTextNode(String(f.numero).padStart(2,'0'))),{once:true});return img;}
 function openDialog(id){document.querySelectorAll('dialog[open]').forEach(d=>{if(d.id!==id)d.close();});if(!$(id).open)$(id).showModal();}
-$('showPlans').onclick=()=>openDialog('plansDialog');
+// Planes para organizadores: banner (sin sesión) y menú abren el modal; cada plan abre su compra en Wix.
+renderCollage($('plansCollage'));
+renderPlanes($('plansGrid'),url=>{const w=window.open(url,'_blank','noopener');if(!w)location.href=url;});
+$('plansPromo').onclick=()=>openDialog('plansDialog');
+$('plansPromo').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openDialog('plansDialog');}};
 $('menuPlans').onclick=()=>openDialog('plansDialog');
-document.querySelectorAll('.plan-checkout').forEach(btn=>btn.onclick=()=>{$('plansStatus').textContent='Plan '+btn.dataset.plan+': compra pendiente de configurar con su ID oficial de Wix Pricing Plans. No se ha iniciado ningún cobro.';});
 $('gameMenu').onclick=()=>openDialog('gameMenuDialog');$('playerIdentity').onclick=()=>openDialog('identityDialog');
 function setPlayerIdentity(user,eo){playerUser=user;const name=user.nombre||'Jugador';$('userName').textContent=name;$('playerIdentity').setAttribute('aria-label','Ver identidad de '+name);$('identityName').textContent=name;$('eoName').textContent=eo.nombre||'—';const initials=name.trim().split(/\s+/).slice(0,2).map(x=>x[0]).join('').toLocaleUpperCase('es');for(const id of ['playerAvatar','identityAvatar']){const target=$(id);target.textContent=initials;const url=imageUrl(user.avatar);if(url){const img=document.createElement('img');img.src=url;img.alt='';img.onerror=()=>img.remove();target.append(img);}}}
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.closest('dialog').close());
@@ -200,6 +205,7 @@ $('bandLogin').onclick=()=>login('');
 async function loadIdentity(){const abort=new AbortController(),timeout=setTimeout(()=>abort.abort(),12000);try{const context=await getContext(abort.signal);if(context?.usuario)paintSession(context.usuario,context.eo);else paintSession(null);}catch{paintSession(null);}finally{clearTimeout(timeout);}}
 // La bienvenida (con monitor e identidad) es la entrada; al regresar del ingreso SYS se continúa a Mis partidas.
 paintSession(null);
-console.info('SCaD LOTERÍA | v9.11 | Promoción 14 días gratis');
+if(CONFIG.liveEnabled&&hasSession())$('plansPromo').hidden=true; // se decide al confirmar la identidad
+console.info('SCaD LOTERÍA | v9.12 | Banner de planes');
 const partida=new URL(location.href).searchParams.get('partida');if(partida){$('gameId').value=partida;if(CONFIG.liveEnabled)join(partida);}else if(CONFIG.liveEnabled&&hasSession()){loadIdentity();}
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
