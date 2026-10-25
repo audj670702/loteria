@@ -9,9 +9,8 @@ export const CFG_COMERCIAL = {
     { id: 'c8f67fe9-44f7-4693-9619-d63c897174d4', nivel: 'ESTANDAR' }, // Plan ESTÁNDAR LOTERÍA
     { id: 'd82f6e6d-fc22-49b9-93d3-c8eac6a3be62', nivel: 'PRO' }       // LOTERÍA - Plan PRO
   ],
-  NIVELES: ['BASICO', 'ESTANDAR', 'PRO'],
-  // EO existentes sin plan (cortesía, p. ej. la EO de pruebas): sin límites.
-  NIVEL_CORTESIA: 'PRO'
+  NIVELES: ['BASICO', 'ESTANDAR', 'PRO']
+  // Sin NIVEL_CORTESIA: toda EO de LOT necesita un plan vigente (no hay cortesía).
 };
 
 // BÁSICO: sólo la baraja TRADICIONAL (compartida). ESTÁNDAR: una baraja propia.

@@ -99,7 +99,7 @@ async function applyContext(c){$('planNotice').hidden=true;$('registerBlock').hi
     notice('Necesitas un plan de LOTERÍA','Para administrar partidas necesitas un plan vigente (Básico, Estándar o PRO). Si acabas de comprarlo, pulsa Actualizar panel en unos segundos.');return;}
   if(!c.seleccionado||!c.identidad)throw new Error('No se pudo determinar un único ente para esta sesión. Revisa tu contexto de acceso en SYS.');
   eoId=c.seleccionado;$('identityUser').textContent=c.identidad.usuario||'Usuario autorizado';$('identityEO').textContent=c.identidad.codigoEO+' · '+c.identidad.ente;$('identityRole').textContent=c.identidad.rol;
-  $('identityPlan').textContent=c.plan?(c.plan.comercial?'Plan '+c.plan.nombre:'Cortesía'):(c.suspendida?'No vigente':'—');
+  $('identityPlan').textContent=c.plan?'Plan '+c.plan.nombre:(c.suspendida?'No vigente':'—');
   if(c.suspendida){$('modules').hidden=true;notice('Suscripción no vigente','La suscripción de LOTERÍA de tu empresa no está activa. Renueva tu plan para continuar; tus barajas y partidas se conservan 30 días después del fin del plan.');return;}
   planInfo=c.plan;applyPlan();await load();}
 async function initialize(){eoId='';$('identityUser').textContent='Verificando sesión…';$('identityEO').textContent='—';$('identityRole').textContent='—';$('identityPlan').textContent='—';await applyContext(await rpc('contexto'));}
