@@ -46,7 +46,7 @@ async function snapshot(game,carton){
 }
 function failure(e){console.error('LOT_SALA',e.status||500);return json(e.status||500,{ok:false,mensaje:e.status?e.message:'No se pudo completar la operación. Intenta de nuevo.',codigo:e.code});}
 export function lotOptions(request){try{origin(request);return response({status:204,headers});}catch(e){return failure(e);}}
-export async function lotContext(request){try{const ctx=await identity(request);if(ctx.response)return ctx.response;return json(200,{ok:true,data:{usuario:{id:ctx.user._id,nombre:ctx.user.nombreVisible||ctx.user.nombreCompleto||ctx.user.nombre||ctx.user.codigoUSR,avatar:ctx.user.avatar||''},eo:{nombre:ctx.eo.nombreVisible||ctx.eo.nombre}}});}catch(e){return failure(e);}}
+export async function lotContext(request){try{const ctx=await identity(request);if(ctx.response)return ctx.response;return json(200,{ok:true,data:{usuario:{id:ctx.user._id,nombre:ctx.user.nombreVisible||ctx.user.nombreCompleto||ctx.user.nombre||ctx.user.codigoUSR,avatar:ctx.user.avatar||''},eo:{nombre:ctx.eo.nombreVisible||ctx.eo.nombre,esAdmPrincipal:id(ctx.eo.admPrincipal)===ctx.user._id}}});}catch(e){return failure(e);}}
 export async function lotEntry(request){try{
   const ctx=await identity(request);if(ctx.response)return ctx.response;
   const body=await request.body.json();
@@ -84,7 +84,7 @@ export async function lotGames(request){try{
     const inscrita=!!r&&!retirado&&(!g.inicio||new Date(r.fechaInscripcion).getTime()<=new Date(g.inicio).getTime());
     return {id:g._id,nombre:g.reglas.nombre&&!g.reglas.nombre.startsWith('LOT-')?g.reglas.nombre:'Partida de lotería',premio:g.reglas.premio||'',estado:closed?'CERRADA':g.estado==='BORRADOR'?'EN_ESPERA':'EN_CURSO',inscrita,retirado,puedeInscribirse:ingresoAbierto(g)&&!inscrita&&!retirado,puedeEntrar:!closed&&inscrita,modo:g.reglas.canto?.modo||'MANUAL',fecha:g.inicio||g._createdDate};
   });
-  return json(200,{ok:true,data:{usuario:{id:ctx.user._id,nombre:ctx.user.nombreVisible||ctx.user.nombreCompleto||ctx.user.nombre||ctx.user.codigoUSR,avatar:ctx.user.avatar||''},eo:{nombre:ctx.eo.nombreVisible||ctx.eo.nombre},partidas}});
+  return json(200,{ok:true,data:{usuario:{id:ctx.user._id,nombre:ctx.user.nombreVisible||ctx.user.nombreCompleto||ctx.user.nombre||ctx.user.codigoUSR,avatar:ctx.user.avatar||''},eo:{nombre:ctx.eo.nombreVisible||ctx.eo.nombre,esAdmPrincipal:id(ctx.eo.admPrincipal)===ctx.user._id},partidas}});
 }catch(e){return failure(e);}}
 
 // La primera inserción con ID único congela el canto. No almacena cartones de no ganadores.
