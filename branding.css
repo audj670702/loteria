@@ -26,3 +26,6 @@ body{background:linear-gradient(145deg,#edf5ff 0%,#fff8ec 100%);color:var(--ink)
 @keyframes scadLogoEnter{0%{opacity:0;transform:scale(.62)}22%{opacity:1}78%{opacity:1;transform:scale(1.08)}100%{opacity:1;transform:scale(1.12)}}
 @media(max-width:780px){.brand-icon{width:40px;height:40px}.brand{font-size:15px}#welcome .intro{padding:18px}#welcome .cover{width:min(75vw,310px);max-width:310px}}
 @media(prefers-reduced-motion:reduce){#brandSplash{transition:none}#brandSplash img{transition:none}}
+
+/* LOTERÍA v9.3 · Acceso compacto en franja del monitor */
+#bandLogin{font-size:12px;line-height:1.2;padding:7px 11px;min-height:32px;min-width:0;width:auto;border-radius:9px;box-shadow:none;white-space:nowrap}
