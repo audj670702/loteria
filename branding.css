@@ -83,14 +83,14 @@ body{background:linear-gradient(145deg,#edf5ff 0%,#fff8ec 100%);color:var(--ink)
 #welcome .plans-promo:active{transform:translateY(0) scale(.99)}
 #welcome .plans-promo:focus-visible{outline:3px solid #ffc849;outline-offset:3px}
 #welcome .plans-promo-art{position:relative;flex:0 0 46%;align-self:stretch;min-height:180px;overflow:hidden}
-#welcome .plans-promo-art img{position:absolute;bottom:-18px;width:86px;aspect-ratio:.66;object-fit:cover;border-radius:8px;border:3px solid #fff;box-shadow:0 8px 18px #0017366e;background:#fff;transform-origin:50% 100%}
-#welcome .plans-promo-art img:nth-child(1){left:2%;transform:rotate(-24deg)}
-#welcome .plans-promo-art img:nth-child(2){left:14%;transform:rotate(-15deg)}
-#welcome .plans-promo-art img:nth-child(3){left:26%;transform:rotate(-6deg)}
-#welcome .plans-promo-art img:nth-child(4){left:38%;transform:rotate(3deg);z-index:2}
-#welcome .plans-promo-art img:nth-child(5){left:50%;transform:rotate(11deg)}
-#welcome .plans-promo-art img:nth-child(6){left:62%;transform:rotate(19deg)}
-#welcome .plans-promo-art img:nth-child(7){left:74%;transform:rotate(27deg)}
+#welcome .plans-promo-art img{position:absolute;top:26px;width:92px;aspect-ratio:.66;object-fit:cover;border-radius:8px;border:3px solid #fff;box-shadow:0 8px 18px #0017366e;background:#fff;transform-origin:50% 120%;transition:transform .18s ease}
+#welcome .plans-promo-art img:nth-child(1){left:0;transform:rotate(-24deg)}
+#welcome .plans-promo-art img:nth-child(2){left:12%;top:16px;transform:rotate(-15deg)}
+#welcome .plans-promo-art img:nth-child(3){left:24%;top:10px;transform:rotate(-6deg)}
+#welcome .plans-promo-art img:nth-child(4){left:36%;top:8px;transform:rotate(3deg);z-index:2}
+#welcome .plans-promo-art img:nth-child(5){left:48%;top:10px;transform:rotate(11deg)}
+#welcome .plans-promo-art img:nth-child(6){left:60%;top:16px;transform:rotate(19deg)}
+#welcome .plans-promo-art img:nth-child(7){left:72%;top:26px;transform:rotate(27deg)}
 #welcome .plans-promo:hover .plans-promo-art img:nth-child(4){transform:rotate(3deg) translateY(-8px)}
 #welcome .plans-promo-copy{position:relative;z-index:3;flex:1;padding:18px 20px 18px 6px}
 #welcome .plans-promo-kicker{font-size:11px;letter-spacing:.14em;color:#ffe29d;font-weight:800}
@@ -98,5 +98,5 @@ body{background:linear-gradient(145deg,#edf5ff 0%,#fff8ec 100%);color:var(--ink)
 #welcome .plans-promo h2 b{color:#ffc849}
 #welcome .plans-promo p{font-size:14px;line-height:1.4;margin:0 0 12px;color:#e5f4ff}
 #welcome .plans-promo-cta{display:inline-flex;align-items:center;gap:10px;background:#ffc849;color:#06376a;font-size:14px;font-weight:800;padding:11px 18px;border-radius:10px;box-shadow:0 4px 12px #001e3c40}
-@media(max-width:600px){#welcome .plans-promo{min-height:168px}#welcome .plans-promo-art{flex-basis:44%;min-height:168px}#welcome .plans-promo-art img{width:58px;bottom:-12px;border-width:2px}#welcome .plans-promo-copy{padding:14px 14px 14px 2px}#welcome .plans-promo h2{font-size:21px}#welcome .plans-promo p{font-size:12px;margin-bottom:10px}#welcome .plans-promo-cta{font-size:13px;padding:10px 13px}}
+@media(max-width:600px){#welcome .plans-promo{min-height:168px}#welcome .plans-promo-art{flex-basis:44%;min-height:168px}#welcome .plans-promo-art img{width:60px;margin-top:22px;border-width:2px}#welcome .plans-promo-copy{padding:14px 14px 14px 2px}#welcome .plans-promo h2{font-size:21px}#welcome .plans-promo p{font-size:12px;margin-bottom:10px}#welcome .plans-promo-cta{font-size:13px;padding:10px 13px}}
 @media(prefers-reduced-motion:reduce){#welcome .plans-promo,#welcome .plans-promo-art img{transition:none}#welcome .plans-promo:hover{transform:none}}
