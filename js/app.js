@@ -22,6 +22,7 @@ function hasAdminRole(user,eo){
 function paintSession(user,eo){
   const card=$('identityCard');
   $('menuAdminPanel').hidden=!user||!hasAdminRole(user,eo);
+  $('bandLogin').hidden=!!user;
   if(!user){card.hidden=true;$('menuIdentity').hidden=true;$('menuSeparator').hidden=true;$('menuLogout').hidden=true;return;}
   const name=user.nombre||'Jugador',initials=name.trim().split(/\s+/).slice(0,2).map(x=>x[0]).join('').toLocaleUpperCase('es');
   const url=imageUrl(user.avatar),avatar=$('bandAvatar');
@@ -189,7 +190,10 @@ async function loadLobby(quiet=false){
 $('openLobby').onclick=()=>loadLobby();$('menuLobby').onclick=()=>loadLobby();$('refreshLobby').onclick=()=>loadLobby();$('gameFilter').onchange=renderLobby;
 function logout(){stopLobby();clearSession();paintSession(null);$('lobby').hidden=true;$('welcome').hidden=false;message('Sesión cerrada.');}
 $('logout').onclick=logout;$('menuLogout').onclick=logout;
-async function loadIdentity(){const abort=new AbortController(),timeout=setTimeout(()=>abort.abort(),12000);try{const context=await getContext(abort.signal);if(context?.usuario)paintSession(context.usuario,context.eo);}catch{paintSession(null);}finally{clearTimeout(timeout);}}
+$('bandLogin').onclick=()=>login('');
+async function loadIdentity(){const abort=new AbortController(),timeout=setTimeout(()=>abort.abort(),12000);try{const context=await getContext(abort.signal);if(context?.usuario)paintSession(context.usuario,context.eo);else paintSession(null);}catch{paintSession(null);}finally{clearTimeout(timeout);}}
 // La bienvenida (con monitor e identidad) es la entrada; al regresar del ingreso SYS se continúa a Mis partidas.
+paintSession(null);
+console.info('SCaD LOTERÍA | v9.2 | Inicio de sesión y menú de usuario');
 const partida=new URL(location.href).searchParams.get('partida');if(partida){$('gameId').value=partida;if(CONFIG.liveEnabled)join(partida);}else if(CONFIG.liveEnabled&&hasSession()){if(returningFromLogin)loadLobby();else loadIdentity();}
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
