@@ -25,9 +25,12 @@ function paintSession(user,eo){
   $('bandLogin').hidden=!!user;
   if(!user){card.hidden=true;$('menuIdentity').hidden=true;$('menuSeparator').hidden=true;$('menuLogout').hidden=true;return;}
   const name=user.nombre||'Jugador',initials=name.trim().split(/\s+/).slice(0,2).map(x=>x[0]).join('').toLocaleUpperCase('es');
-  const url=imageUrl(user.avatar),avatar=$('bandAvatar');
+  const avatar=$('bandAvatar');
+  const sources=[user.avatar,user.foto,user.fotoPerfil,user.profilePhoto,user.profilePicture,user.imagen,user.picture,user.photo,user.profile?.photo,user.profile?.picture,user.member?.profile?.photo];
+  const urls=sources.map(v=>typeof v==='string'?v:v?.url||v?.src||v?.fileUrl||v?.imageUrl||'').map(imageUrl).filter(Boolean);
   avatar.className='identity-avatar identity-initials';avatar.replaceChildren(initials);
-  if(url){const img=document.createElement('img');img.src=url;img.alt='';img.referrerPolicy='no-referrer';img.className='identity-avatar';img.onerror=()=>{avatar.className='identity-avatar identity-initials';avatar.replaceChildren(initials);};avatar.className='';avatar.replaceChildren(img);}
+  const loadAvatar=(i)=>{if(i>=urls.length){avatar.className='identity-avatar identity-initials';avatar.replaceChildren(initials);return;}const img=document.createElement('img');img.alt='';img.referrerPolicy='no-referrer';img.decoding='async';img.style.cssText='width:100%;height:100%;object-fit:cover;display:block';img.onload=()=>{avatar.className='identity-avatar';avatar.replaceChildren(img)};img.onerror=()=>loadAvatar(i+1);img.src=urls[i];};
+  if(urls.length)loadAvatar(0);
   $('bandName').textContent=name;$('bandEo').textContent=eo?.nombre||'';card.hidden=false;
   $('menuIdentity').textContent=name+(eo?.nombre?' · '+eo.nombre:'');$('menuIdentity').hidden=false;$('menuSeparator').hidden=false;$('menuLogout').hidden=false;
 }
@@ -193,6 +196,6 @@ $('bandLogin').onclick=()=>login('');
 async function loadIdentity(){const abort=new AbortController(),timeout=setTimeout(()=>abort.abort(),12000);try{const context=await getContext(abort.signal);if(context?.usuario)paintSession(context.usuario,context.eo);else paintSession(null);}catch{paintSession(null);}finally{clearTimeout(timeout);}}
 // La bienvenida (con monitor e identidad) es la entrada; al regresar del ingreso SYS se continúa a Mis partidas.
 paintSession(null);
-console.info('SCaD LOTERÍA | v9.5 | Bienvenida compacta');
+console.info('SCaD LOTERÍA | v9.6 | Avatar y logotipo HUB');
 const partida=new URL(location.href).searchParams.get('partida');if(partida){$('gameId').value=partida;if(CONFIG.liveEnabled)join(partida);}else if(CONFIG.liveEnabled&&hasSession()){loadIdentity();}
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
