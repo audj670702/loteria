@@ -28,7 +28,7 @@ async function context(eoKey) {
   check(member?._id, 'Inicia sesion en Wix.');
   const users = await all(wixData.query('SCaD_USR').eq('app','LOT').eq('activo',true).eq('memberId',member._id));
   const eos = await all(wixData.query('SCaD_EO').eq('app','LOT').eq('activo',true));
-  const allowed = eos.map(eo => ({eo, usr:users.find(u => u.enteOperador === eo.codigoContexto)})).filter(x => {
+  const allowed = eos.map(eo => ({eo, usr:users.find(u => u.enteOperador === eo.codigoContexto), vigente:false})).filter(x => {
     if (!x.usr) return false;
     const roles = Array.isArray(x.usr.roles) ? x.usr.roles : [];
     return roles.map(r => String(r).toUpperCase()).includes('ADM') || id(x.eo.admPrincipal) === x.usr._id || id(x.eo.admSys) === x.usr._id;
