@@ -20,12 +20,20 @@ body{background:linear-gradient(145deg,#edf5ff 0%,#fff8ec 100%);color:var(--ink)
 .game-card{box-shadow:0 8px 22px #063e7510}
 #lobby h1{color:#064782}
 #brandSplash{position:fixed;inset:0;z-index:9999;background:radial-gradient(circle at 50% 42%,#1486d2 0%,#074b92 47%,#042a5a 100%);display:grid;place-items:center;pointer-events:all;opacity:1;visibility:visible;transition:opacity .7s ease,visibility .7s}
-#brandSplash img{width:min(68vw,330px);max-height:65dvh;aspect-ratio:1;object-fit:contain;border-radius:22%;filter:drop-shadow(0 22px 28px #001c4380);opacity:0;transform:scale(.82);transition:opacity .25s ease,transform .45s cubic-bezier(.15,.75,.2,1)}
-#brandSplash.is-ready img{opacity:1;transform:scale(1)}
+#brandSplash > img{width:min(68vw,330px);max-height:65dvh;aspect-ratio:1;object-fit:contain;border-radius:0;clip-path:inset(1.6% round 17%);filter:drop-shadow(0 22px 28px #001c4380);opacity:0;transform:scale(.82);transition:opacity .25s ease,transform .45s cubic-bezier(.15,.75,.2,1)}
+#brandSplash.is-ready > img{opacity:1;transform:scale(1)}
 #brandSplash.is-done{opacity:0;visibility:hidden;pointer-events:none}
 @keyframes scadLogoEnter{0%{opacity:0;transform:scale(.62)}22%{opacity:1}78%{opacity:1;transform:scale(1.08)}100%{opacity:1;transform:scale(1.12)}}
 @media(max-width:780px){.brand-icon{width:40px;height:40px}.brand{font-size:15px}#welcome .intro{padding:18px}#welcome .cover{width:min(75vw,310px);max-width:310px}}
-@media(prefers-reduced-motion:reduce){#brandSplash{transition:none}#brandSplash img{transition:none}}
+@media(prefers-reduced-motion:reduce){#brandSplash{transition:none}#brandSplash > img{transition:none}}
 
 /* LOTERÍA v9.3 · Acceso compacto en franja del monitor */
 #bandLogin{font-size:12px;line-height:1.2;padding:7px 11px;min-height:32px;min-width:0;width:auto;border-radius:9px;box-shadow:none;white-space:nowrap}
+
+/* LOTERÍA v9.4 · firma SCaD HUB bajo el logotipo */
+#brandSplash{grid-template-rows:1fr auto;align-items:center;justify-items:center;padding:clamp(18px,4vh,36px) 16px;box-sizing:border-box}
+#brandSplash > img{align-self:end;margin-bottom:clamp(32px,7vh,74px)}
+#brandSplash .splash-powered{align-self:end;display:flex;align-items:center;justify-content:center;gap:9px;color:#dceeff;font:400 12px/1.3 system-ui,sans-serif;letter-spacing:.03em;margin-bottom:clamp(12px,3vh,28px);opacity:0;transition:opacity .25s ease}
+#brandSplash.is-ready .splash-powered{opacity:1}
+#brandSplash .splash-hub{display:inline-flex;align-items:center;gap:6px;color:white;font-size:13px;letter-spacing:.035em}
+#brandSplash .splash-hub img{width:24px;height:24px;object-fit:contain;border-radius:5px}
