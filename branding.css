@@ -52,3 +52,15 @@ body{background:linear-gradient(145deg,#edf5ff 0%,#fff8ec 100%);color:var(--ink)
 #welcome .real-entry .muted{margin:0}
 #welcome .real-entry details{flex-basis:100%;font-size:12px}
 @media(max-width:600px){#welcome .welcome{padding:10px 0 18px}#welcome .intro{padding:16px}#welcome .welcome-hero{gap:12px}#welcome .welcome-hero-logo{flex-basis:104px;width:104px;border-radius:12px}#welcome .welcome-hero h1{font-size:clamp(27px,7vw,38px)}#welcome .welcome-hero .eyebrow{font-size:9px;letter-spacing:1px}#welcome .welcome-hero .lead{font-size:13px}#welcome .intro-actions{display:grid;grid-template-columns:1fr auto}#welcome .intro-actions button{padding:11px 12px;font-size:13px}#welcome .intro-actions .primary span{margin-left:8px}#welcome .real-entry{margin-top:14px}#welcome .real-entry .quiet{font-size:12px;padding:9px 12px}}
+
+/* LOTERÍA v9.8 · Oferta pública */
+.plans-dialog{width:min(96vw,1000px);max-height:90dvh;overflow:auto;border:1px solid #c9dbee;border-radius:18px;padding:clamp(16px,3vw,30px);color:#142b4c;background:#fff;box-shadow:0 22px 80px #092f5366}
+.plans-dialog::backdrop{background:#041d39a8}
+.plans-dialog h2{margin:5px 0 8px}
+.plans-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:18px}
+.plan-card{display:flex;flex-direction:column;gap:9px;border:1px solid #d2e1f1;border-radius:15px;padding:12px;background:#f5f9ff}
+.plan-card img{display:block;width:100%;aspect-ratio:1.2;object-fit:contain;border-radius:10px;background:#edf4fb}
+.plan-card h3{margin:0;font-size:17px;color:#074b92}
+.plan-card p{flex:1;margin:0;font-size:13px;line-height:1.5}
+.plan-card button{font-size:13px;padding:10px}
+@media(max-width:650px){.plans-grid{grid-template-columns:1fr;gap:10px}.plan-card{display:grid;grid-template-columns:94px 1fr;align-items:center}.plan-card img{grid-row:span 3;width:94px;aspect-ratio:1}.plan-card button{grid-column:2}.plans-dialog{padding:16px}}
