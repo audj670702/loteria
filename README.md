@@ -10,7 +10,7 @@ La conexión a Wix usa SYS LOT, ingreso antes del inicio y comprobantes firmados
 
 ## Monitor TV
 
-La bienvenida es la pantalla de entrada. En la franja superior lleva la tarjeta de identidad del usuario a la izquierda y el monitor TV a la derecha, como en CPC. `js/tv.js`, `js/tv-model.js` y `tv.css` son copia del modelo de CPC (`cpc-tv.js` v0.5.35): hay que mantenerlos iguales.
+La bienvenida es la pantalla de entrada. En la franja superior lleva la tarjeta de identidad del usuario a la izquierda y el monitor TV a la derecha, como en CPC. `js/tv.js`, `js/tv-model.js` y `tv.css` toman como referencia el monitor de CPC (`cpc-tv.js` v0.5.34). Los ajustes son propios de LOT: sin CH 00, estática y canales de YouTube que arrancan silenciados para no pedir Reproducir. CPC no se modifica.
 
 - No hay canal de la EO (CH 00). CH 01 y CH 02 son las salidas de TV Digital (HLS), y CH 01 es el predeterminado.
 - CH 03 en adelante son canales virtuales según el catálogo y la programación del panel TV Digital (`tvdCanales` y `tvdTransmision`).

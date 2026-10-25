@@ -1,10 +1,10 @@
 import { resolveSysTransmission } from "./tv-model.js?v=0.5.35";
-// Copia del modelo de CPC (audj670702/CPC-eLearning · cpc-tv.js). Mantener ambos iguales.
-// CPC · Monitor TV · v0.5.35 · modelo compartido (CPC, LOT…)
+// LOT · basado en el monitor de CPC (cpc-tv.js v0.5.34, sólo referencia); los ajustes de abajo son de LOT.
+// LOT · Monitor TV · v0.5.35
 // CH 00: canal de la EO (en CPC, TV Capacitación). Opcional: eoChannel:false lo omite.
 // CH 01–02: señales digitales. CH 03+: catálogo y programación de SYS.
 // Opciones (tvMarkup / initCpcTv): eoChannel (true), staticEffect (false: estática al cambiar de canal).
-// v0.5.35 · canales de YouTube: el reproductor siempre arranca silenciado (autoplay permitido),
+// Canales de YouTube: el reproductor siempre arranca silenciado (autoplay permitido),
 // el sonido se activa después, y el cambio de programa reutiliza el mismo reproductor.
 
 const TVDI_HLS = "https://tvdigital.scad.mx/cfcx/canal/index.m3u8";

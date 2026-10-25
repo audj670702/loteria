@@ -1,4 +1,4 @@
-// Copia del modelo de CPC (cpc-tv-model.js v0.5.35). Mantener ambos iguales.
+// LOT · igual a cpc-tv-model.js de CPC (referencia).
 // Matches backend/tvdNucleo.js ORIGEN_CICLO when no "Transmitir ahora" anchor exists.
 const DEFAULT_ANCHOR = Date.parse('2026-10-13T06:00:00Z');
 export function youtubeId(value) {
