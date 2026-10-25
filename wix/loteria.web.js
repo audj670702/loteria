@@ -11,7 +11,7 @@ import { verifyDigitalCard, resolveDigitalResult } from 'backend/lotSala';
 import { currentMember } from 'wix-members-backend';
 import { webMethod, Permissions } from 'wix-web-module';
 import { comercial } from 'backend/sysComercial';
-import { CFG_COMERCIAL, capacidades, nombreNivel, barajasHabilitadas, puedeCrearBaraja, revisarCanto } from 'backend/lotPlan';
+import { CFG_COMERCIAL, capacidades, limiteBarajas, nombreNivel, barajasHabilitadas, puedeCrearBaraja, revisarCanto } from 'backend/lotPlan';
 const C = comercial(CFG_COMERCIAL);
 const O = { suppressAuth: true, consistentRead: true };
 const id = v => typeof v === 'string' ? v : v?._id || '';
@@ -40,11 +40,11 @@ async function context(eoKey) {
   return {allowed, selected, member};
 }
 // Nivel con el que opera la EO (consulta Pricing): sólo donde se aplican límites.
-async function plan(ctx) { const nivel = await C.nivelEO(ctx.eo); return {nivel, cap:capacidades(nivel)}; }
+async function plan(ctx) { const nivel = await C.nivelEO(ctx.eo); const barajas = limiteBarajas(ctx.eo, nivel); return {nivel, barajas, cap:{...capacidades(nivel), barajasPropias:barajas >= 999 ? Infinity : barajas}}; }
 async function ownCatalogsOf(ctx) { return all(wixData.query('LOT_Catalogos').eq('enteOperador',ctx.eo._id)); }
-async function checkCatalogEnabled(cat, ctx, nivel) {
+async function checkCatalogEnabled(cat, ctx) {
   if (cat.compartido === true) return;
-  check(barajasHabilitadas(await ownCatalogsOf(ctx), nivel).has(cat._id),'Esta baraja quedó fuera de tu plan actual. Usa la baraja tradicional o la baraja habilitada, o cambia de plan.');
+  check(barajasHabilitadas(await ownCatalogsOf(ctx), (await plan(ctx)).barajas).has(cat._id),'Esta baraja quedó fuera de tu plan actual. Usa la baraja tradicional o la baraja habilitada, o cambia de plan.');
 }
 async function owned(col, key, ctx) {
   const item = await wixData.get(col,text(key),O);
@@ -94,16 +94,16 @@ export const lotOperacion = webMethod(Permissions.SiteMember, async (request) =>
     if (accion === 'cargar') {
       const ownCatalogs = await all(wixData.query('LOT_Catalogos').eq('enteOperador',ctx.eo._id).ascending('nombre'));
       const sharedCatalogs = await all(wixData.query('LOT_Catalogos').eq('compartido',true).eq('activo',true));
-      const {nivel} = await plan(ctx);
-      const enabled = barajasHabilitadas(ownCatalogs,nivel);
+      const {barajas} = await plan(ctx);
+      const enabled = barajasHabilitadas(ownCatalogs,barajas);
       const catalogs = mergeCatalogs(ownCatalogs,sharedCatalogs).map(c=>({...c,habilitada:c.compartido === true || enabled.has(c._id)}));
       const rawGames = await all(wixData.query('LOT_Partidas').eq('enteOperador',ctx.eo._id).descending('_createdDate'));
       return {ok:true,data:{catalogos:catalogs,partidas:rawGames.map(g=>vistaPartida(g))}};
     }
     if (accion === 'catalogoCrear') {
       check(text(datos.nombre).length >= 2,'Escribe el nombre del catalogo.');
-      const {nivel} = await plan(ctx);
-      check(puedeCrearBaraja((await ownCatalogsOf(ctx)).length,nivel),nivel === 'BASICO' ? 'El Plan Básico usa la baraja tradicional. Las barajas personalizadas están en los planes Estándar y PRO.' : 'Tu plan ya tiene su baraja personalizada. Edítala o cambia al Plan PRO para tener más barajas.');
+      const {barajas} = await plan(ctx);
+      check(puedeCrearBaraja((await ownCatalogsOf(ctx)).length,barajas),barajas === 0 ? 'El Plan Básico usa la baraja tradicional. Las barajas personalizadas están en los planes Estándar y PRO.' : 'Tu plan ya tiene su baraja personalizada. Edítala o cambia al Plan PRO para tener más barajas.');
       const saved = await wixData.insert('LOT_Catalogos',{nombre:text(datos.nombre).slice(0,120),descripcion:text(datos.descripcion).slice(0,1000),enteOperador:ctx.eo._id,activo:true,compartido:false},O);
       return {ok:true,data:saved};
     }
@@ -114,7 +114,7 @@ export const lotOperacion = webMethod(Permissions.SiteMember, async (request) =>
     if (accion === 'figuraGuardar') {
       const cat = await catalog(datos.catalogo,ctx);
       check(canEditCatalog(cat,ctx.eo._id),'La baraja predeterminada es de solo lectura. Crea un catalogo personalizado para tus figuras.');
-      await checkCatalogEnabled(cat,ctx,(await plan(ctx)).nivel);
+      await checkCatalogEnabled(cat,ctx);
       // Bloquea mientras una partida la use: en preparación, en curso o cerrada aún sin resumir.
       const used = (await all(wixData.query('LOT_Partidas').eq('catalogo',cat._id))).filter(g=>!g.fechaCompactacion);
       check(!used.length,'La baraja está en uso por una partida activa o recién cerrada. Edítala cuando la partida termine.');
@@ -132,7 +132,7 @@ export const lotOperacion = webMethod(Permissions.SiteMember, async (request) =>
       const cat = await catalog(datos.catalogo,ctx);
       check(cat.activo === true,'El catalogo esta inactivo.');
       const {nivel} = await plan(ctx);
-      await checkCatalogEnabled(cat,ctx,nivel);
+      await checkCatalogEnabled(cat,ctx);
       revisarCanto(configPartida(datos).canto.modo,nivel);
       const pool = (await figures(cat._id)).filter(f=>f.activo === true);
       check(pool.length >= 16 && pool.length <= 1000,'La baraja debe tener de 16 a 1000 figuras activas.');

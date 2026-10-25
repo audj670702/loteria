@@ -9,8 +9,15 @@ export const CFG_COMERCIAL = {
     { id: 'c8f67fe9-44f7-4693-9619-d63c897174d4', nivel: 'ESTANDAR' }, // Plan ESTÁNDAR LOTERÍA
     { id: 'd82f6e6d-fc22-49b9-93d3-c8eac6a3be62', nivel: 'PRO' }       // LOTERÍA - Plan PRO
   ],
-  NIVELES: ['BASICO', 'ESTANDAR', 'PRO']
+  NIVELES: ['BASICO', 'ESTANDAR', 'PRO'],
   // Sin NIVEL_CORTESIA: toda EO de LOT necesita un plan vigente (no hay cortesía).
+  // Límites de Panel SYS por plan. En LOT, documentos = barajas propias (999 = sin límite práctico).
+  // SYS los aplica al registrar la EO y los sincroniza si el titular cambia de plan.
+  LIMITES_NIVEL: {
+    BASICO: { limiteUsuarios: 20, usuariosIlimitados: false, limiteDocumentos: 0 },
+    ESTANDAR: { limiteUsuarios: 50, usuariosIlimitados: false, limiteDocumentos: 1 },
+    PRO: { limiteUsuarios: 100, usuariosIlimitados: false, limiteDocumentos: 999 }
+  }
 };
 
 // BÁSICO: sólo la baraja TRADICIONAL (compartida). ESTÁNDAR: una baraja propia.
@@ -25,6 +32,13 @@ const NOMBRES = { BASICO: 'Básico', ESTANDAR: 'Estándar', PRO: 'PRO' };
 
 /** Capacidades de un nivel. Sin nivel conocido se aplica la más restrictiva. */
 export function capacidades(nivel) { return CAPACIDADES[nivel] || CAPACIDADES.BASICO; }
+
+/** Barajas propias permitidas: el "Límite de documentos" de la EO (Panel SYS); si no lo tiene, el del nivel. */
+export function limiteBarajas(eo, nivel) {
+  const n = Number(eo && eo.limiteDocumentos);
+  return eo && eo.limiteDocumentos !== undefined && eo.limiteDocumentos !== null && Number.isFinite(n) && n >= 0 ? n : capacidades(nivel).barajasPropias;
+}
+const limiteDe = x => typeof x === 'number' ? x : capacidades(x).barajasPropias;
 export function nombreNivel(nivel) { return NOMBRES[nivel] || ''; }
 
 /**
@@ -32,16 +46,16 @@ export function nombreNivel(nivel) { return NOMBRES[nivel] || ''; }
  * Al bajar de plan, las excedentes quedan bloqueadas y la EO decide si
  * actualiza la que conserva. La TRADICIONAL (compartida) siempre está habilitada.
  */
-export function barajasHabilitadas(propias, nivel) {
-  const n = capacidades(nivel).barajasPropias;
+export function barajasHabilitadas(propias, limite) {
+  const n = limiteDe(limite);
   const orden = [...(propias || [])].sort((a, b) =>
     (new Date(a._createdDate || 0).getTime() - new Date(b._createdDate || 0).getTime()) || String(a._id).localeCompare(String(b._id)));
   return new Set((n === Infinity ? orden : orden.slice(0, n)).map(c => c._id));
 }
 
 /** ¿El nivel permite crear otra baraja propia, dado cuántas tiene? */
-export function puedeCrearBaraja(cuantasPropias, nivel) {
-  return Number(cuantasPropias || 0) < capacidades(nivel).barajasPropias;
+export function puedeCrearBaraja(cuantasPropias, limite) {
+  return Number(cuantasPropias || 0) < limiteDe(limite);
 }
 
 /** Mensaje cuando una configuración pide canto automático sin permitirlo el plan. */
