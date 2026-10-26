@@ -82,7 +82,7 @@ export const lotOperacion = webMethod(Permissions.SiteMember, async (request) =>
       let registro = null, planActual = null;
       if (!resolved.allowed.length) { const nivel = await C.nivelDeMiembro(resolved.member._id); registro = {disponible:!!nivel,nivel,plan:nombreNivel(nivel)}; }
       if (x && x.vigente) { const p = await plan(x); planActual = {nivel:p.nivel,nombre:nombreNivel(p.nivel),comercial:C.esComercial(x.eo),barajasPropias:p.cap.barajasPropias === Infinity ? null : p.cap.barajasPropias,cantoAutomatico:p.cap.cantoAutomatico}; }
-      return {ok:true,data:{entes:resolved.allowed.map(x=>({_id:x.eo._id,nombre:x.eo.nombreVisible || x.eo.nombre,codigo:x.eo.codigoEO})),seleccionado:x?.eo._id || '',identidad:x ? {usuario:x.usr.nombreVisible || x.usr.nombreCompleto || x.usr.nombre || x.usr.codigoUSR,rol:C.esAsistencia(x.eo,x.usr)?'Asistencia SYS':'ADM',ente:x.eo.nombreVisible || x.eo.nombre,codigoEO:x.eo.codigoEO,aplicacion:'LOTERÍA'} : null,suspendida:!!x && !x.vigente,plan:planActual,registro,modalidad:'CARTON_LLENO',filas:4,columnas:4}};
+      return {ok:true,data:{entes:resolved.allowed.map(x=>({_id:x.eo._id,nombre:x.eo.nombreVisible || x.eo.nombre,codigo:x.eo.codigoEO})),seleccionado:x?.eo._id || '',identidad:x ? {usuario:x.usr.nombreVisible || x.usr.nombreCompleto || x.usr.nombre || x.usr.codigoUSR,rol:C.esAsistencia(x.eo,x.usr)?'Asistencia SYS':'ADM',ente:x.eo.nombreVisible || x.eo.nombre,codigoEO:x.eo.codigoEO,codigoLocalizacion:x.eo.codigoAcceso || '',aplicacion:'LOTERÍA'} : null,suspendida:!!x && !x.vigente,plan:planActual,registro,modalidad:'CARTON_LLENO',filas:4,columnas:4}};
     }
     const ctx = resolved.selected;
     check(ctx,'Selecciona un ente LOT activo para el que tengas permiso ADM.');
