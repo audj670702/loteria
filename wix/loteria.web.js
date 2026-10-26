@@ -2,6 +2,7 @@
 // Solo ADM puede operar. Usuarios y entes sólo se crean en el registro por
 // autoservicio de backend/sysComercial (titular con plan vigente y sin EO).
 // v2.1: planes BÁSICO/ESTÁNDAR/PRO (backend/lotPlan) y EO suspendida sin plan vigente.
+// v2.3: imagenesUbicar (carga nativa de la página: #boxCarga / #uploadCarga) para la imagen de una figura.
 // v2.2: retención (backend/lotRetencion). Ganadores sin cartón; baraja editable sin partidas activas.
 import wixData from 'wix-data';
 import crypto from 'crypto';
@@ -106,6 +107,17 @@ export const lotOperacion = webMethod(Permissions.SiteMember, async (request) =>
       check(puedeCrearBaraja((await ownCatalogsOf(ctx)).length,barajas),barajas === 0 ? 'El Plan Básico usa la baraja tradicional. Las barajas personalizadas están en los planes Estándar y PRO.' : 'Tu plan ya tiene su baraja personalizada. Edítala o cambia al Plan PRO para tener más barajas.');
       const saved = await wixData.insert('LOT_Catalogos',{nombre:text(datos.nombre).slice(0,120),descripcion:text(datos.descripcion).slice(0,1000),enteOperador:ctx.eo._id,activo:true,compartido:false},O);
       return {ok:true,data:saved};
+    }
+    if (accion === 'imagenesUbicar') {
+      // La página sube el archivo con su botón nativo; aquí se valida la baraja y se devuelve la imagen a usar.
+      const cat = await catalog(datos.catalogo,ctx);
+      check(canEditCatalog(cat,ctx.eo._id),'La baraja predeterminada es de solo lectura. Crea un catalogo personalizado para tus figuras.');
+      await checkCatalogEnabled(cat,ctx);
+      const archivos = (Array.isArray(datos.archivos) ? datos.archivos : []).slice(0,20)
+        .map(a => ({fileId:text(a?.fileId),url:text(a?.url),nombre:text(a?.nombre).slice(0,200)}))
+        .filter(a => a.url.startsWith('wix:image://') || a.url.startsWith('https://'));
+      check(archivos.length,'No se recibió ninguna imagen válida.');
+      return {ok:true,data:{archivos}};
     }
     if (accion === 'figuras') {
       const cat = await catalog(datos.catalogo,ctx);
