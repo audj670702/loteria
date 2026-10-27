@@ -22,7 +22,7 @@ body.in-room{overflow:hidden}.in-room .topbar,.in-room footer{display:none}.in-r
 .winner-person{display:flex;align-items:center;gap:14px;margin:16px 0}.winner-person .player-avatar{width:64px;height:64px;flex-basis:64px;font-size:24px}.winner-person strong{font-size:22px;overflow-wrap:anywhere}
 @media(prefers-reduced-motion:reduce){.game-shell .board-panel.one-away{animation:none;border-color:#cf3035;box-shadow:inset 0 0 0 3px #d82c2c88,inset 0 0 18px #ed333355}}
 
-/* v0.9.1 · Franja superior como en CPC: identidad a la izquierda y monitor TV a la derecha (tv.css). */
+/* v0.9.0 · Franja superior como en CPC: identidad a la izquierda y monitor TV a la derecha (tv.css). */
 .top-band-left{display:flex;flex-direction:column;justify-content:space-between;gap:10px;min-height:100%}
 .tv-home{margin:0 0 6px}
 .identity-card{display:flex;flex-direction:column;align-items:flex-start;gap:8px;min-width:0;padding:4px 2px}
