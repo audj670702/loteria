@@ -1,6 +1,6 @@
 # Integración Wix / SYS
 
-La sala usa SYS con app LOT y retorno HTTPS a loteria.scad.mx. El token firmado llega en #t, se retira de la URL y se conserva solo en sessionStorage. El servidor valida firma, caducidad, app, usuario activo SCaD_USR, EO activa SCaD_EO y pertenencia por codigoContexto en cada petición. No se duplican identidades.
+La sala usa SYS con app LOT y retorno HTTPS a loteria.scad.mx. El token firmado llega en #t, se retira de la URL y se conserva en localStorage hasta que el usuario pulse «Cerrar sesión». Un 401 no borra la sesión; sólo pide volver a ingresar. El servidor valida firma, caducidad, app, usuario activo SCaD_USR, EO activa SCaD_EO y pertenencia por codigoContexto en cada petición. No se duplican identidades.
 
 ## Rutas
 

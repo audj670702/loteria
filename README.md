@@ -26,7 +26,7 @@ Pruebas con Node.js 22 o posterior (26 comprobaciones): `npm test` (sin instalar
 
 ## Privacidad
 
-Cartón y marcas permanecen en memoria, se pierden al recargar o salir y nunca se guardan en CMS, localStorage, IndexedDB o caché. El token SYS se conserva solo en sessionStorage y se retira del fragmento de URL. Ninguna identidad o empresa se crea en esta app.
+Cartón y marcas permanecen en memoria, se pierden al recargar o salir y nunca se guardan en CMS, localStorage, IndexedDB o caché. El token SYS se conserva en localStorage hasta que el usuario pulsa «Cerrar sesión», y se retira del fragmento de URL. Ninguna identidad o empresa se crea en esta app.
 
 ## Publicación
 

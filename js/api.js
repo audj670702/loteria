@@ -5,10 +5,11 @@ export function captureSession() {
   const token=hash.get('t');
   if (token) {
     history.replaceState(null,'',location.pathname+location.search);
-    try { sessionStorage.setItem(TOKEN_KEY,token); } catch { throw new Error('Habilita el almacenamiento de sesión para ingresar.'); }
+    try { localStorage.setItem(TOKEN_KEY,token); } catch { throw new Error('Habilita el almacenamiento de sesión para ingresar.'); }
   }
 }
-export function clearSession() { try { sessionStorage.removeItem(TOKEN_KEY); } catch {} }
+// Sólo el botón «Cerrar sesión» llama a clearSession; ningún otro evento cierra la sesión.
+export function clearSession() { try { localStorage.removeItem(TOKEN_KEY); } catch {} }
 export function login(partida) {
   if (!CONFIG.liveEnabled) throw new Error('La conexión a partidas reales está en preparación.');
   const back=new URL(location.origin+location.pathname); if(partida)back.searchParams.set('partida',partida);
@@ -17,13 +18,13 @@ export function login(partida) {
 }
 async function request(path, signal, {ticket='',body}={}) {
   if (!CONFIG.liveEnabled) throw new Error('La conexión a partidas reales está en preparación.');
-  let token=''; try { token=sessionStorage.getItem(TOKEN_KEY)||''; } catch {}
+  let token=''; try { token=localStorage.getItem(TOKEN_KEY)||''; } catch {}
   if (!token) { const error=new Error('Inicia sesión para entrar a la partida.'); error.auth=true; throw error; }
   const headers={Accept:'application/json',Authorization:'Bearer '+token};
   if(ticket)headers['X-LOT-Carton']=ticket;
   if(body)headers['Content-Type']='application/json';
   const response=await fetch(CONFIG.apiBase+path,{signal,method:body?'POST':'GET',body:body?JSON.stringify(body):undefined,headers,cache:'no-store',credentials:'omit'});
-  if (response.status===401) { clearSession(); const e=new Error('Tu sesión terminó. Vuelve a ingresar.'); e.auth=true; throw e; }
+  if (response.status===401) { const e=new Error('Tu sesión venció. Vuelve a ingresar.'); e.auth=true; throw e; }
   const result=await response.json();
   if (!response.ok || result.ok!==true) {const error=new Error(result.mensaje||'No se pudo actualizar la partida.');error.code=result.codigo;throw error;}
   return result.data;
@@ -35,6 +36,6 @@ export const getState=(id,ticket,signal,presencia=false)=>request('/lotSalaEstad
 export const exitGame=(id,signal)=>request('/lotSalaSalida',signal,{body:{partida:id}});
 
 export const getGames=signal=>request('/lotSalaPartidas',signal);
-export function hasSession(){try{return !!sessionStorage.getItem(TOKEN_KEY);}catch{return false;}}
+export function hasSession(){try{return !!localStorage.getItem(TOKEN_KEY);}catch{return false;}}
 
 export const presentCard=(id,ticket,signal)=>request('/lotSalaEntrada',signal,{ticket,body:{partida:id,accion:'presentar'}});
