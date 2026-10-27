@@ -26,7 +26,7 @@ async function identity(request){
   check(users.items.length===1&&eos.items.length===1,'No tienes un acceso LOT activo para este ente.');
   // EO comercial sin plan vigente del titular: suspendida para todos sus usuarios (caché de 10 min en SYS).
   check(await C.vigenciaEO(eos.items[0]),'La suscripción de LOTERÍA de tu ente no está vigente. Pide al responsable que la renueve.');
-  return {user:users.items[0],eo:eos.items[0]};
+  return {user:users.items[0],eo:eos.items[0],memberId:auth.memberId};
 }
 async function gameFor(key,ctx){
   check(typeof key==='string'&&/^[a-zA-Z0-9-]{16,64}$/.test(key),'Identificador de partida inválido.',400);
@@ -46,7 +46,7 @@ async function snapshot(game,carton){
 }
 function failure(e){console.error('LOT_SALA',e.status||500);return json(e.status||500,{ok:false,mensaje:e.status?e.message:'No se pudo completar la operación. Intenta de nuevo.',codigo:e.code});}
 export function lotOptions(request){try{origin(request);return response({status:204,headers});}catch(e){return failure(e);}}
-export async function lotContext(request){try{const ctx=await identity(request);if(ctx.response)return ctx.response;return json(200,{ok:true,data:{usuario:{id:ctx.user._id,nombre:ctx.user.nombreVisible||ctx.user.nombreCompleto||ctx.user.nombre||ctx.user.codigoUSR,avatar:ctx.user.avatar||''},eo:{nombre:ctx.eo.nombreVisible||ctx.eo.nombre,esAdmPrincipal:id(ctx.eo.admPrincipal)===ctx.user._id}}});}catch(e){return failure(e);}}
+export async function lotContext(request){try{const ctx=await identity(request);if(ctx.response)return ctx.response;const contextos=(await wixData.query('SCaD_USR').eq('app','LOT').eq('activo',true).eq('memberId',ctx.memberId).limit(10).find(O)).items.length;return json(200,{ok:true,data:{usuario:{contextos,id:ctx.user._id,nombre:ctx.user.nombreVisible||ctx.user.nombreCompleto||ctx.user.nombre||ctx.user.codigoUSR,avatar:ctx.user.avatar||''},eo:{nombre:ctx.eo.nombreVisible||ctx.eo.nombre,esAdmPrincipal:id(ctx.eo.admPrincipal)===ctx.user._id}}});}catch(e){return failure(e);}}
 export async function lotEntry(request){try{
   const ctx=await identity(request);if(ctx.response)return ctx.response;
   const body=await request.body.json();

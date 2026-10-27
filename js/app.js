@@ -26,6 +26,8 @@ function paintSession(user,eo){
   $('openLobby').hidden=!user;
   // El titular de la EO (admPrincipal) ya tiene plan: no se le ofrece.
   $('plansPromo').hidden=!!user&&eo?.esAdmPrincipal===true;
+  // Cambio de ente: sólo si la cuenta tiene 2 o más contextos LOT (lotContext.usuario.contextos).
+  $('switchEO').hidden=!(user?.contextos>1);
   if(!user){card.hidden=true;$('menuIdentity').hidden=true;$('menuSeparator').hidden=true;$('menuLogout').hidden=true;return;}
   const name=user.nombre||'Jugador',initials=name.trim().split(/\s+/).slice(0,2).map(x=>x[0]).join('').toLocaleUpperCase('es');
   const avatar=$('bandAvatar');
@@ -201,6 +203,8 @@ $('openLobby').onclick=()=>loadLobby();$('menuLobby').onclick=()=>loadLobby();$(
 function logout(){stopLobby();clearSession();paintSession(null);$('lobby').hidden=true;$('welcome').hidden=false;message('Sesión cerrada.');}
 $('logout').onclick=logout;$('menuLogout').onclick=logout;
 $('bandLogin').onclick=()=>login('');
+// Cierre silencioso del token LOT y regreso al selector de EO de SYS (sin cerrar la sesión de scad.mx).
+$('switchEO').onclick=()=>{logout();login('');};
 async function loadIdentity(){const abort=new AbortController(),timeout=setTimeout(()=>abort.abort(),12000);try{const context=await getContext(abort.signal);if(context?.usuario)paintSession(context.usuario,context.eo);else paintSession(null);}catch{paintSession(null);}finally{clearTimeout(timeout);}}
 // La bienvenida (con monitor e identidad) es la entrada; al regresar del ingreso SYS se continúa a Mis partidas.
 paintSession(null);
