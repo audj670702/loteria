@@ -203,8 +203,8 @@ $('openLobby').onclick=()=>loadLobby();$('menuLobby').onclick=()=>loadLobby();$(
 function logout(){stopLobby();clearSession();paintSession(null);$('lobby').hidden=true;$('welcome').hidden=false;message('Sesión cerrada.');}
 $('logout').onclick=logout;$('menuLogout').onclick=logout;
 $('bandLogin').onclick=()=>login('');
-// Cierre silencioso del token LOT y regreso al selector de EO de SYS (sin cerrar la sesión de scad.mx).
-$('switchEO').onclick=()=>{logout();login('');};
+// Cambio de cuenta: el token actual se conserva; sólo se reemplaza si el usuario elige otra EO en SYS.
+$('switchEO').onclick=()=>login('');
 async function loadIdentity(){const abort=new AbortController(),timeout=setTimeout(()=>abort.abort(),12000);try{const context=await getContext(abort.signal);if(context?.usuario)paintSession(context.usuario,context.eo);else paintSession(null);}catch{paintSession(null);}finally{clearTimeout(timeout);}}
 // La bienvenida (con monitor e identidad) es la entrada; al regresar del ingreso SYS se continúa a Mis partidas.
 paintSession(null);
